@@ -20,8 +20,8 @@ pub async fn login_handler(
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, (StatusCode, Json<ErrorResponse>)> {
     let ip = addr.ip().to_string();
-    let admin_opt = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_first_login, pref_show_inactive, pref_show_others, pref_sort_by FROM admins WHERE email = ?").bind(&payload.email).fetch_optional(&state.pool).await.map_err(|_| {(StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro no banco".to_string() }))})?;
-    let (is_valid, admin_id, is_first, pref_inactive, pref_others, pref_sort) = match &admin_opt { Some(a) => (verify(&payload.password, &a.password).unwrap_or(false), Some(a.id), a.is_first_login, a.pref_show_inactive, a.pref_show_others, a.pref_sort_by.clone()), None => (false, None, false, false, false, "updated_desc".to_string()) };
+    let admin_opt = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_first_login, pref_show_inactive, pref_show_others, pref_sort_by, is_active FROM admins WHERE email = ?").bind(&payload.email).fetch_optional(&state.pool).await.map_err(|_| {(StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro no banco".to_string() }))})?;
+    let (is_valid, admin_id, is_first, pref_inactive, pref_others, pref_sort) = match &admin_opt { Some(a) => (a.is_active && verify(&payload.password, &a.password).unwrap_or(false), Some(a.id), a.is_first_login, a.pref_show_inactive, a.pref_show_others, a.pref_sort_by.clone()), None => (false, None, false, false, false, "updated_desc".to_string()) };
     let _ = sqlx::query("INSERT INTO login_logs (email, success, remote_ip) VALUES (?, ?, ?)").bind(&payload.email).bind(is_valid).bind(&ip).execute(&state.pool).await;
     if !is_valid { return Err((StatusCode::UNAUTHORIZED, Json(ErrorResponse { error: "Credenciais inválidas".to_string() }))); }
     let expiration = Utc::now().checked_add_signed(Duration::hours(24)).expect("Erro").timestamp() as usize;
@@ -62,11 +62,14 @@ pub async fn get_dashboard(
     claims: Claims,
     State(state): State<AppState>,
 ) -> Result<Json<DashboardResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let admin = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_first_login, pref_show_inactive, pref_show_others, pref_sort_by FROM admins WHERE id = ?")
+    let admin = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_active, is_first_login, pref_show_inactive, pref_show_others, pref_sort_by FROM admins WHERE id = ?")
         .bind(claims.sub)
         .fetch_optional(&state.pool)
         .await
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro no banco".to_string() })))?;
+        .map_err(|e| {
+            println!("DB ERROR in get_dashboard: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro no banco".to_string() }))
+        })?;
 
     match admin {
         Some(a) => Ok(Json(DashboardResponse {

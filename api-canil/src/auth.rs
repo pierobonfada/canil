@@ -99,6 +99,22 @@ where
             }
         };
 
+        let is_active: bool = sqlx::query_scalar("SELECT is_active FROM admins WHERE id = ?")
+            .bind(token_data.claims.sub)
+            .fetch_optional(&app_state.pool)
+            .await
+            .unwrap_or(Some(false))
+            .unwrap_or(false);
+
+        if !is_active {
+            return Err((
+                StatusCode::UNAUTHORIZED,
+                Json(ErrorResponse {
+                    error: "Conta desativada".to_string(),
+                }),
+            ));
+        }
+
         Ok(token_data.claims)
     }
 }

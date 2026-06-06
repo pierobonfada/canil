@@ -71,6 +71,7 @@ async fn init_db(pool: &sqlx::SqlitePool) {
             email TEXT NOT NULL UNIQUE, 
             phone TEXT NOT NULL, 
             password TEXT NOT NULL, 
+            is_active INTEGER NOT NULL DEFAULT 1,
             is_first_login INTEGER NOT NULL DEFAULT 1,
             pref_show_inactive INTEGER NOT NULL DEFAULT 0,
             pref_show_others INTEGER NOT NULL DEFAULT 0,

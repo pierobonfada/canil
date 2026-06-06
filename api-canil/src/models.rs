@@ -31,6 +31,7 @@ pub struct Claims {
 pub struct AdminRecord {
     pub id: i64,
     pub password: String,
+    pub is_active: bool,
     pub is_first_login: bool,
     pub pref_show_inactive: bool,
     pub pref_show_others: bool,
