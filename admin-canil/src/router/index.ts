@@ -6,6 +6,7 @@ import AddAnimalView from '../views/AddAnimalView.vue'
 import EditAnimalView from '../views/EditAnimalView.vue'
 import AdminManagementView from '../views/AdminManagementView.vue'
 import SystemLogsView from '../views/SystemLogsView.vue'
+import AnalyticsView from '../views/AnalyticsView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -15,6 +16,7 @@ const router = createRouter({
     { path: '/dashboard', name: 'dashboard', component: DashboardView, meta: { requiresAuth: true } },
     { path: '/animais/novo', name: 'add-animal', component: AddAnimalView, meta: { requiresAuth: true } },
     { path: '/animais/editar/:id', name: 'edit-animal', component: EditAnimalView, meta: { requiresAuth: true } },
+    { path: '/analytics', name: 'analytics', component: AnalyticsView, meta: { requiresAuth: true } },
     { path: '/admins', name: 'admins', component: AdminManagementView, meta: { requiresAuth: true, requiresMaster: true } },
     { path: '/logs', name: 'logs', component: SystemLogsView, meta: { requiresAuth: true, requiresMaster: true } }
   ]

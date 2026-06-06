@@ -63,19 +63,51 @@
           
           <div class="form-grid">
             <div class="form-group">
+              <label>Cor Predominante *</label>
+              <select v-model="form.predominant_color" required>
+                <option value="" disabled selected>Selecione...</option>
+                <option value="Branco">Branco</option>
+                <option value="Preto">Preto</option>
+                <option value="Caramelo">Caramelo</option>
+                <option value="Cinza">Cinza</option>
+                <option value="Marrom">Marrom</option>
+                <option value="Tricolor">Tricolor</option>
+                <option value="Bicolor">Bicolor</option>
+                <option value="Laranja">Laranja</option>
+                <option value="Outra">Outra</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
               <label>Com Cães *</label>
               <select v-model="form.behavior_dogs" required>
+                <option value="" disabled selected>Comportamento...</option>
                 <option value="Dócil">Dócil</option>
                 <option value="Neutro">Neutro</option>
                 <option value="Agressivo">Agressivo</option>
+                <option value="Desconhecido">Desconhecido</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Com Gatos *</label>
+              <select v-model="form.behavior_cats" required>
+                <option value="" disabled selected>Comportamento...</option>
+                <option value="Dócil">Dócil</option>
+                <option value="Neutro">Neutro</option>
+                <option value="Agressivo">Agressivo</option>
+                <option value="Desconhecido">Desconhecido</option>
               </select>
             </div>
             <div class="form-group">
               <label>Com Humanos *</label>
               <select v-model="form.behavior_humans" required>
+                <option value="" disabled selected>Comportamento...</option>
                 <option value="Dócil">Dócil</option>
                 <option value="Medroso">Medroso</option>
                 <option value="Agressivo">Agressivo</option>
+                <option value="Desconhecido">Desconhecido</option>
               </select>
             </div>
           </div>
@@ -180,8 +212,8 @@ const selectedFiles = ref<File[]>([])
 const form = ref({ 
   name: '', species: '', birth_year: null as any, breed: '', 
   is_vaccinated: '' as any, is_dewormed: '' as any, behavior_dogs: '', 
-  behavior_humans: '', independence: '', size: '', 
-  coat_color: 'Indefinida', coat_length: 'Curto', description: '', diseases: '',
+  behavior_cats: '', behavior_humans: '', independence: '', size: '', 
+  coat_color: 'Indefinida', predominant_color: '', coat_length: 'Curto', description: '', diseases: '',
   primary_photo: '',
   photos: [] as { file_path: string, is_active: boolean, is_primary: boolean }[]
 })

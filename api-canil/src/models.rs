@@ -104,10 +104,12 @@ pub struct AnimalDetailResponse {
     pub is_vaccinated: bool,
     pub is_dewormed: bool,
     pub behavior_dogs: String,
+    pub behavior_cats: String,
     pub behavior_humans: String,
     pub independence: String,
     pub size: String,
     pub coat_color: String,
+    pub predominant_color: String,
     pub coat_length: String,
     pub description: String,
     pub is_active: bool,
@@ -125,10 +127,12 @@ pub struct AnimalRow {
     pub is_vaccinated: bool,
     pub is_dewormed: bool,
     pub behavior_dogs: String,
-    pub behavior_humans: String,
+    pub behavior_cats: String,
+    pub behavior_humans: Option<String>,
     pub independence: String,
     pub size: String,
     pub coat_color: String,
+    pub predominant_color: String,
     pub coat_length: String,
     pub description: String,
     pub is_active: bool,
@@ -186,4 +190,97 @@ pub struct LogFilters {
     pub severity: Option<String>,
     pub animal_id: Option<i64>,
     pub log_type: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct PublicAnimalFilters {
+    pub name: Option<String>,
+    pub page: Option<i64>,
+    pub limit: Option<i64>,
+    pub species: Option<String>,
+    pub predominant_color: Option<String>,
+    pub size: Option<String>,
+    pub behavior_dogs: Option<String>,
+    pub behavior_cats: Option<String>,
+    pub behavior_humans: Option<String>,
+    pub age_min: Option<i64>,
+    pub age_max: Option<i64>,
+}
+
+#[derive(Serialize, sqlx::FromRow)]
+pub struct PublicTutorContact {
+    pub name: String,
+    pub phone: String,
+    pub email: String,
+}
+
+#[derive(Serialize)]
+pub struct PublicAnimalDetail {
+    pub animal: AnimalDetailResponse,
+    pub tutors: Vec<PublicTutorContact>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AnalyticsEventRequest {
+    pub visitor_id: String,
+    pub event_type: String,
+    pub path: String,
+    pub animal_id: Option<i64>,
+    pub payload: Option<serde_json::Value>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct SessionFilters {
+    pub date: Option<String>,
+    pub ip: Option<String>,
+    pub animals: Option<String>,
+    pub page: Option<i64>,
+    pub limit: Option<i64>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct AnalyticsSessionResponse {
+    pub visitor_id: String,
+    pub ip_address: Option<String>,
+    pub user_agent: Option<String>,
+    pub created_at: String,
+    pub events: Vec<AnalyticsEventDetail>,
+}
+
+#[derive(Serialize, Debug, sqlx::FromRow)]
+pub struct AnalyticsEventDetail {
+    pub id: i64,
+    pub event_type: String,
+    pub path: String,
+    pub animal_id: Option<i64>,
+    pub animal_name: Option<String>,
+    pub payload: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Serialize, Debug)]
+pub struct AnalyticsDashboardResponse {
+    pub visitors_today: i64,
+    pub visitors_week: i64,
+    pub visitors_month: i64,
+    pub visitors_year: i64,
+    pub top_animals: Vec<TopAnimalStats>,
+    pub most_searched_species: Vec<StatCount>,
+    pub most_searched_color: Vec<StatCount>,
+    pub most_searched_size: Vec<StatCount>,
+    pub most_searched_age: Vec<StatCount>,
+    pub most_contacted_animals: Vec<TopAnimalStats>,
+}
+
+#[derive(Serialize, Debug, sqlx::FromRow)]
+pub struct TopAnimalStats {
+    pub animal_id: i64,
+    pub name: String,
+    pub count: i64,
+}
+
+#[derive(Serialize, Debug, sqlx::FromRow)]
+pub struct StatCount {
+    pub name: String,
+    pub count: i64,
 }

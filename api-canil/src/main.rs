@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod analytics_handlers;
 pub mod admin_handlers;
 pub mod handlers;
 pub mod image_utils;
@@ -17,6 +18,10 @@ use crate::admin_handlers::{create_admin, get_admins, get_system_logs, update_ad
 use crate::handlers::{
     change_password, create_animal, get_animal, get_animals, get_dashboard, login_handler,
     toggle_tutorship, update_animal, update_animal_status, update_preferences,
+    get_public_animals, get_public_animal,
+};
+use crate::analytics_handlers::{
+    register_event, get_dashboard_stats, get_sessions, get_session_details
 };
 
 #[tokio::main]
@@ -57,9 +62,14 @@ async fn main() {
         .route("/api/auth/preferences", patch(update_preferences))
         .route("/api/dashboard", get(get_dashboard))
         .route("/api/animais", get(get_animals).post(create_animal))
-        .route("/api/animais/:id", get(get_animal).put(update_animal))
-        .route("/api/animais/:id/status", patch(update_animal_status))
+        .route("/api/animais/:id", get(get_animal).put(update_animal).patch(update_animal_status))
         .route("/api/animais/:id/tutores", post(toggle_tutorship))
+        .route("/api/analytics/dashboard", get(get_dashboard_stats))
+        .route("/api/analytics/sessions", get(get_sessions))
+        .route("/api/analytics/sessions/:id", get(get_session_details))
+        .route("/api/public/animais", get(get_public_animals))
+        .route("/api/public/animais/:id", get(get_public_animal))
+        .route("/api/public/analytics", post(register_event))
         .layer(cors)
         .with_state(state);
 
@@ -125,6 +135,7 @@ async fn init_db(pool: &sqlx::SqlitePool) {
             is_vaccinated INTEGER DEFAULT 0,
             is_dewormed INTEGER DEFAULT 0,
             behavior_dogs TEXT,
+            behavior_cats TEXT,
             behavior_humans TEXT,
             independence TEXT,
             size TEXT,
@@ -157,6 +168,18 @@ async fn init_db(pool: &sqlx::SqlitePool) {
             PRIMARY KEY (animal_id, admin_id),
             FOREIGN KEY(animal_id) REFERENCES animals(id) ON DELETE CASCADE,
             FOREIGN KEY(admin_id) REFERENCES admins(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS site_analytics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            visitor_id TEXT NOT NULL,
+            ip_address TEXT,
+            user_agent TEXT,
+            event_type TEXT NOT NULL,
+            path TEXT NOT NULL,
+            animal_id INTEGER,
+            payload TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
     "#;
 

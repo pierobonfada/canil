@@ -3,6 +3,7 @@
     <header class="top-bar">
       <h2>🐾 Painel do Canil</h2>
       <div class="header-actions">
+        <button @click="router.push('/analytics')" class="btn-master" style="background: var(--primary-color);">📈 Estatísticas</button>
         <button v-if="isMaster" @click="router.push('/admins')" class="btn-master">👑 Admins</button>
         <button v-if="isMaster" @click="router.push('/logs')" class="btn-master">📊 Logs</button>
         <button @click="handleLogout" class="btn-logout">Sair</button>

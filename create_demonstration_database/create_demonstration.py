@@ -89,11 +89,13 @@ def create_animal(token, species, name, photo_path):
             'breed': 'SRD' if random.random() > 0.5 else ('Labrador' if species == 'Cachorro' else 'Persa'),
             'is_vaccinated': 'true',
             'is_dewormed': 'true',
-            'behavior_dogs': 'Sociável',
-            'behavior_humans': 'Amigável',
-            'independence': 'Moderada',
-            'size': 'Médio',
+            'behavior_dogs': random.choice(['Dócil', 'Neutro', 'Agressivo', 'Desconhecido']),
+            'behavior_cats': random.choice(['Dócil', 'Neutro', 'Agressivo', 'Desconhecido']),
+            'behavior_humans': random.choice(['Dócil', 'Medroso', 'Agressivo', 'Desconhecido']),
+            'independence': random.choice(['Independente', 'Dependente']),
+            'size': random.choice(['Pequeno', 'Médio', 'Grande']),
             'coat_color': 'Variada',
+            'predominant_color': random.choice(['Branco', 'Preto', 'Caramelo', 'Cinza', 'Marrom', 'Tricolor', 'Bicolor', 'Laranja', 'Outra']),
             'coat_length': 'Curto',
             'description': f"Este é {name}, um ótimo {species.lower()} aguardando muito carinho e uma nova casa!"
         }
@@ -107,38 +109,135 @@ def create_animal(token, species, name, photo_path):
 import sys
 
 def main():
-    if len(sys.argv) < 2 or (sys.argv[1] not in ['--create', '--clear']):
+    if '--help' in sys.argv or len(sys.argv) < 2:
         print("Uso do script:")
-        print("  --create   Limpa os dados antigos e cria novos dados de demonstração.")
-        print("  --clear    Apenas remove os dados de demonstração (não cria novos).")
+        print("  --populate_animals   Limpa os dados antigos e cria novos dados de demonstração.")
+        print("  --simulate_traffic   Gera tráfego simulado de navegação para as estatísticas.")
+        print("  --clear              Apenas remove os dados de demonstração (não cria novos).")
+        print("  --overflow           Cria 150 cachorros e 40 gatos reaproveitando as fotos.")
         return
 
     os.makedirs('photos', exist_ok=True)
-    cleanup()
+    
+    if '--clear' in sys.argv or '--populate_animals' in sys.argv or '--overflow' in sys.argv:
+        cleanup()
 
-    if '--clear' in sys.argv:
+    if '--clear' in sys.argv and '--populate_animals' not in sys.argv and '--overflow' not in sys.argv:
         print("Clear mode enabled. Exiting sem criar novos animais.")
         return
 
-    setup_db_user()
-    token = login()
+    if '--populate_animals' in sys.argv or '--overflow' in sys.argv:
+        setup_db_user()
+        token = login()
 
-    dogs = ["Rex", "Totó", "Bolinha", "Lassie", "Snoopy", "Pluto", "Max", "Buddy", "Duke", "Buster"]
-    cats = ["Garfield", "Mingau"]
+        dogs = ["Rex", "Totó", "Bolinha", "Lassie", "Snoopy", "Pluto", "Max", "Buddy", "Duke", "Buster"]
+        cats = ["Garfield", "Mingau"]
 
-    print("Fetching images and creating profiles. This might take a minute...")
+        is_overflow = '--overflow' in sys.argv
+        num_dogs = 150 if is_overflow else len(dogs)
+        num_cats = 40 if is_overflow else len(cats)
 
-    for i, name in enumerate(dogs):
-        photo_path = f"photos/dog_{i}.jpg"
-        download_image(f"https://loremflickr.com/400/400/dog?lock={i+10}", photo_path)
-        create_animal(token, "Cachorro", name, photo_path)
+        print("Fetching images and creating profiles. This might take a minute...")
 
-    for i, name in enumerate(cats):
-        photo_path = f"photos/cat_{i}.jpg"
-        download_image(f"https://loremflickr.com/400/400/cat?lock={i+10}", photo_path)
-        create_animal(token, "Gato", name, photo_path)
+        for i in range(num_dogs):
+            photo_index = i % len(dogs)
+            name = dogs[photo_index] + (f" {i//len(dogs)}" if i >= len(dogs) else "")
+            photo_path = f"photos/dog_{photo_index}.jpg"
+            if i < len(dogs):
+                download_image(f"https://loremflickr.com/400/400/dog?lock={photo_index+10}", photo_path)
+            create_animal(token, "Cachorro", name, photo_path)
 
+        for i in range(num_cats):
+            photo_index = i % len(cats)
+            name = cats[photo_index] + (f" {i//len(cats)}" if i >= len(cats) else "")
+            photo_path = f"photos/cat_{photo_index}.jpg"
+            if i < len(cats):
+                download_image(f"https://loremflickr.com/400/400/cat?lock={photo_index+10}", photo_path)
+            create_animal(token, "Gato", name, photo_path)
+
+    if '--simulate_traffic' in sys.argv or '--populate_animals' in sys.argv or '--overflow' in sys.argv:
+        generate_traffic()
+        
     print("Done!")
+
+import uuid
+from datetime import datetime, timedelta
+
+def generate_traffic():
+    print("Generating simulated traffic for 20+ users...")
+    res = requests.get(f"{API_URL}/public/animais?limit=100")
+    if res.status_code != 200:
+        print("Failed to fetch animals for traffic generation.")
+        return
+    animals = res.json()
+    if not animals:
+        return
+
+    animal_ids = [a['id'] for a in animals]
+    animal_species = list(set([a['species'] for a in animals]))
+    animal_colors = ["Preto", "Branco", "Caramelo", "Mesclado", "Frajola"]
+    animal_sizes = ["Pequeno", "Médio", "Grande"]
+
+    user_agents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15",
+        "Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36"
+    ]
+
+    for _ in range(random.randint(20, 30)):
+        visitor_id = "v_" + str(uuid.uuid4())
+        ua = random.choice(user_agents)
+        ip = f"{random.randint(100,200)}.{random.randint(10,250)}.{random.randint(10,250)}.{random.randint(1,250)}"
+        headers = {"User-Agent": ua, "X-Forwarded-For": ip}
+        
+        # Base time for this user (up to 30 days ago)
+        base_time = datetime.now() - timedelta(days=random.randint(0, 30), hours=random.randint(0, 23))
+        
+        def send_event(ev_type, path, animal_id=None, payload=None, time_offset_sec=0):
+            # SQLite manipulation to insert retroactively (API uses current time)
+            # Since our API uses CURRENT_TIMESTAMP, we will insert directly via sqlite
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            ev_time = (base_time + timedelta(seconds=time_offset_sec)).strftime('%Y-%m-%d %H:%M:%S')
+            cursor.execute('''
+                INSERT INTO site_analytics (visitor_id, ip_address, user_agent, event_type, path, animal_id, payload, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (visitor_id, ip, ua, ev_type, path, animal_id, payload, ev_time))
+            conn.commit()
+            conn.close()
+
+        # Step 1: Visit Home
+        send_event("page_view", "/public/animais", time_offset_sec=0)
+        
+        offset = random.randint(10, 60)
+        # Step 2: Search filters
+        for _ in range(random.randint(0, 3)):
+            payload = {}
+            if random.random() > 0.5:
+                payload["species"] = random.choice(animal_species)
+            if random.random() > 0.5:
+                payload["predominant_color"] = random.choice(animal_colors)
+            if random.random() > 0.5:
+                payload["size"] = random.choice(animal_sizes)
+            if payload:
+                import json
+                send_event("search", "/public/animais", payload=json.dumps(payload), time_offset_sec=offset)
+                offset += random.randint(5, 20)
+
+        # Step 3: View some animals
+        for _ in range(random.randint(1, 4)):
+            a_id = random.choice(animal_ids)
+            send_event("page_view", f"/animal/{a_id}", animal_id=a_id, time_offset_sec=offset)
+            offset += random.randint(10, 120)
+            
+            # Step 4: Maybe send message
+            if random.random() > 0.7:
+                method = random.choice(["whatsapp", "email"])
+                import json
+                send_event("message_sent", f"/animal/{a_id}", animal_id=a_id, payload=json.dumps({"method": method, "tutor": "Tutor de Demonstração"}), time_offset_sec=offset+10)
+
+    print("Traffic generated successfully.")
 
 if __name__ == "__main__":
     main()

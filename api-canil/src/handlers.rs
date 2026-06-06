@@ -1,5 +1,5 @@
 use axum::{
-    extract::{ConnectInfo, Multipart, Path, State},
+    extract::{ConnectInfo, Multipart, Path, State, Query},
     http::StatusCode,
     Json,
 };
@@ -11,7 +11,7 @@ use std::{env, net::SocketAddr};
 use crate::models::{
     AdminRecord, AnimalDetailResponse, AnimalListItem, AnimalRow, AppState, ChangePasswordRequest,
     Claims, ErrorResponse, LoginRequest, LoginResponse, StatusPayload, PhotoInfo, 
-    UpdatePreferencesRequest, DashboardResponse
+    UpdatePreferencesRequest, DashboardResponse, PublicAnimalFilters, PublicTutorContact, PublicAnimalDetail
 };
 
 pub async fn login_handler(
@@ -147,7 +147,7 @@ pub async fn create_animal(
     mut multipart: Multipart,
 ) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
     let (mut name, mut species, mut birth_year, mut breed, mut is_vaccinated, mut is_dewormed) = (String::new(), String::new(), 0, String::from("Sem raça definida"), false, false);
-    let (mut behavior_dogs, mut behavior_humans, mut independence, mut size, mut coat_color, mut coat_length, mut description) = (String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new());
+    let (mut behavior_dogs, mut behavior_cats, mut behavior_humans, mut independence, mut size, mut coat_color, mut predominant_color, mut coat_length, mut description) = (String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new());
     let mut photos: Vec<String> = Vec::new();
     let mut diseases: Vec<String> = Vec::new();
 
@@ -162,8 +162,8 @@ pub async fn create_animal(
                 "name" => name = text, "species" => species = text, "birth_year" => birth_year = text.parse().unwrap_or(0),
                 "breed" => if !text.trim().is_empty() { breed = text }, "is_vaccinated" => is_vaccinated = text == "true",
                 "is_dewormed" => is_dewormed = text == "true", "behavior_dogs" => behavior_dogs = text,
-                "behavior_humans" => behavior_humans = text, "independence" => independence = text, "size" => size = text,
-                "coat_color" => coat_color = text, "coat_length" => coat_length = text, "description" => description = text,
+                "behavior_cats" => behavior_cats = text, "behavior_humans" => behavior_humans = text, "independence" => independence = text, "size" => size = text,
+                "coat_color" => coat_color = text, "predominant_color" => predominant_color = text, "coat_length" => coat_length = text, "description" => description = text,
                 "diseases" => { if !text.trim().is_empty() { diseases = text.split(',').map(|s| s.trim().to_string()).collect(); } }
                 _ => {}
             }
@@ -175,10 +175,10 @@ pub async fn create_animal(
     let animal_id: i64 = sqlx::query_scalar(
         r#"
         INSERT INTO animals 
-        (name, species, birth_year, breed, is_vaccinated, is_dewormed, behavior_dogs, behavior_humans, independence, size, coat_color, coat_length, description) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+        (name, species, birth_year, breed, is_vaccinated, is_dewormed, behavior_dogs, behavior_cats, behavior_humans, independence, size, coat_color, predominant_color, coat_length, description) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
         "#
-    ).bind(&name).bind(&species).bind(birth_year).bind(&breed).bind(is_vaccinated).bind(is_dewormed).bind(&behavior_dogs).bind(&behavior_humans).bind(&independence).bind(&size).bind(&coat_color).bind(&coat_length).bind(&description).fetch_one(&mut *tx).await.unwrap();
+    ).bind(&name).bind(&species).bind(birth_year).bind(&breed).bind(is_vaccinated).bind(is_dewormed).bind(&behavior_dogs).bind(&behavior_cats).bind(&behavior_humans).bind(&independence).bind(&size).bind(&coat_color).bind(&predominant_color).bind(&coat_length).bind(&description).fetch_one(&mut *tx).await.unwrap();
 
     for disease in &diseases { sqlx::query("INSERT INTO animal_diseases (animal_id, disease_name) VALUES (?, ?)").bind(animal_id).bind(disease).execute(&mut *tx).await.unwrap(); }
     for (index, path) in photos.iter().enumerate() { sqlx::query("INSERT INTO animal_photos (animal_id, file_path, is_primary, is_active) VALUES (?, ?, ?, 1)").bind(animal_id).bind(path).bind(index == 0).execute(&mut *tx).await.unwrap(); }
@@ -268,8 +268,8 @@ pub async fn get_animal(
     Ok(Json(AnimalDetailResponse {
         id: a.id, name: a.name, species: a.species, birth_year: a.birth_year, breed: a.breed.unwrap_or_default(),
         is_vaccinated: a.is_vaccinated, is_dewormed: a.is_dewormed, behavior_dogs: a.behavior_dogs,
-        behavior_humans: a.behavior_humans, independence: a.independence, size: a.size, coat_color: a.coat_color,
-        coat_length: a.coat_length, description: a.description, is_active: a.is_active, diseases, photos,
+        behavior_cats: a.behavior_cats, behavior_humans: a.behavior_humans.unwrap_or_default(), independence: a.independence, size: a.size, coat_color: a.coat_color,
+        predominant_color: a.predominant_color, coat_length: a.coat_length, description: a.description, is_active: a.is_active, diseases, photos,
     }))
 }
 
@@ -280,7 +280,7 @@ pub async fn update_animal(
     mut multipart: Multipart,
 ) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
     let (mut name, mut species, mut birth_year, mut breed, mut is_vaccinated, mut is_dewormed) = (String::new(), String::new(), 0, String::from("Sem raça definida"), false, false);
-    let (mut behavior_dogs, mut behavior_humans, mut independence, mut size, mut coat_color, mut coat_length, mut description) = (String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new());
+    let (mut behavior_dogs, mut behavior_cats, mut behavior_humans, mut independence, mut size, mut coat_color, mut predominant_color, mut coat_length, mut description) = (String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new());
     let mut photos: Vec<String> = Vec::new();
     let mut diseases: Vec<String> = Vec::new();
     let mut active_photos: Vec<String> = Vec::new();
@@ -301,8 +301,8 @@ pub async fn update_animal(
                 "name" => name = text, "species" => species = text, "birth_year" => birth_year = text.parse().unwrap_or(0),
                 "breed" => if !text.trim().is_empty() { breed = text }, "is_vaccinated" => is_vaccinated = text == "true",
                 "is_dewormed" => is_dewormed = text == "true", "behavior_dogs" => behavior_dogs = text,
-                "behavior_humans" => behavior_humans = text, "independence" => independence = text, "size" => size = text,
-                "coat_color" => coat_color = text, "coat_length" => coat_length = text, "description" => description = text,
+                "behavior_cats" => behavior_cats = text, "behavior_humans" => behavior_humans = text, "independence" => independence = text, "size" => size = text,
+                "coat_color" => coat_color = text, "predominant_color" => predominant_color = text, "coat_length" => coat_length = text, "description" => description = text,
                 "diseases" => { if !text.trim().is_empty() { diseases = text.split(',').map(|s| s.trim().to_string()).collect(); } }
                 _ => {}
             }
@@ -315,13 +315,13 @@ pub async fn update_animal(
         r#"
         UPDATE animals 
         SET name=?, species=?, birth_year=?, breed=?, is_vaccinated=?, is_dewormed=?, 
-            behavior_dogs=?, behavior_humans=?, independence=?, size=?, coat_color=?, 
+            behavior_dogs=?, behavior_cats=?, behavior_humans=?, independence=?, size=?, coat_color=?, predominant_color=?, 
             coat_length=?, description=?, updated_at=CURRENT_TIMESTAMP
         WHERE id=?
         "#
     )
     .bind(&name).bind(&species).bind(birth_year).bind(&breed).bind(is_vaccinated).bind(is_dewormed)
-    .bind(&behavior_dogs).bind(&behavior_humans).bind(&independence).bind(&size).bind(&coat_color)
+    .bind(&behavior_dogs).bind(&behavior_cats).bind(&behavior_humans).bind(&independence).bind(&size).bind(&coat_color).bind(&predominant_color)
     .bind(&coat_length).bind(&description).bind(id)
     .execute(&mut *tx)
     .await
@@ -403,4 +403,84 @@ pub async fn toggle_tutorship(
         tx.commit().await.unwrap();
         Ok(Json("Tutoria assumida".to_string()))
     }
+}
+
+pub async fn get_public_animals(
+    Query(filters): Query<PublicAnimalFilters>,
+    State(state): State<AppState>,
+) -> Result<Json<Vec<AnimalDetailResponse>>, (StatusCode, Json<ErrorResponse>)> {
+    let mut q = sqlx::QueryBuilder::new("SELECT * FROM animals WHERE is_active = 1");
+    
+    if let Some(n) = &filters.name { if !n.is_empty() { q.push(" AND name LIKE "); q.push_bind(format!("%{}%", n)); } }
+    if let Some(s) = &filters.species { if !s.is_empty() { q.push(" AND species = "); q.push_bind(s); } }
+    if let Some(c) = &filters.predominant_color { if !c.is_empty() { q.push(" AND predominant_color = "); q.push_bind(c); } }
+    if let Some(sz) = &filters.size { if !sz.is_empty() { q.push(" AND size = "); q.push_bind(sz); } }
+    if let Some(bd) = &filters.behavior_dogs { if !bd.is_empty() { q.push(" AND behavior_dogs = "); q.push_bind(bd); } }
+    if let Some(bh) = &filters.behavior_cats { if !bh.is_empty() { q.push(" AND behavior_cats = "); q.push_bind(bh); } }
+    if let Some(bhum) = &filters.behavior_humans { if !bhum.is_empty() { q.push(" AND behavior_humans = "); q.push_bind(bhum); } }
+    
+    // year logic for age
+    if filters.age_min.is_some() || filters.age_max.is_some() {
+        let current_year = chrono::Utc::now().naive_utc().date().format("%Y").to_string().parse::<i64>().unwrap_or(2026);
+        if let Some(min) = filters.age_min { q.push(" AND birth_year <= "); q.push_bind(current_year - min); }
+        if let Some(max) = filters.age_max { q.push(" AND birth_year >= "); q.push_bind(current_year - max); }
+    }
+
+    q.push(" ORDER BY (id * 97) % 100 DESC, updated_at DESC"); // Pseudo-random determinista diversificado
+
+    if let Some(limit) = filters.limit {
+        q.push(" LIMIT "); q.push_bind(limit);
+        if let Some(page) = filters.page {
+            q.push(" OFFSET "); q.push_bind((page - 1) * limit);
+        }
+    } else {
+        q.push(" LIMIT 10 OFFSET 0"); // default pagination
+    }
+
+    let rows: Vec<AnimalRow> = q.build_query_as().fetch_all(&state.pool).await.unwrap_or_default();
+    
+    let mut results = Vec::new();
+    for a in rows {
+        let photos: Vec<PhotoInfo> = sqlx::query_as("SELECT file_path, is_active, is_primary FROM animal_photos WHERE animal_id = ? AND is_active = 1 ORDER BY is_primary DESC, id ASC")
+            .bind(a.id).fetch_all(&state.pool).await.unwrap_or_default();
+        let diseases: Vec<String> = sqlx::query_scalar("SELECT disease_name FROM animal_diseases WHERE animal_id = ?")
+            .bind(a.id).fetch_all(&state.pool).await.unwrap_or_default();
+            
+        results.push(AnimalDetailResponse {
+            id: a.id, name: a.name, species: a.species, birth_year: a.birth_year, breed: a.breed.unwrap_or_default(),
+            is_vaccinated: a.is_vaccinated, is_dewormed: a.is_dewormed, behavior_dogs: a.behavior_dogs,
+            behavior_cats: a.behavior_cats, behavior_humans: a.behavior_humans.unwrap_or_default(), independence: a.independence, size: a.size, coat_color: a.coat_color,
+            predominant_color: a.predominant_color, coat_length: a.coat_length, description: a.description, is_active: a.is_active, diseases, photos,
+        });
+    }
+    
+    Ok(Json(results))
+}
+
+pub async fn get_public_animal(
+    Path(id): Path<i64>,
+    State(state): State<AppState>,
+) -> Result<Json<PublicAnimalDetail>, (StatusCode, Json<ErrorResponse>)> {
+    let a: AnimalRow = match sqlx::query_as("SELECT * FROM animals WHERE id = ? AND is_active = 1").bind(id).fetch_optional(&state.pool).await {
+        Ok(Some(animal)) => animal,
+        _ => return Err((StatusCode::NOT_FOUND, Json(ErrorResponse { error: "Animal não encontrado".to_string(), remaining_attempts: None }))),
+    };
+    
+    let photos: Vec<PhotoInfo> = sqlx::query_as("SELECT file_path, is_active, is_primary FROM animal_photos WHERE animal_id = ? AND is_active = 1 ORDER BY is_primary DESC, id ASC")
+        .bind(a.id).fetch_all(&state.pool).await.unwrap_or_default();
+    let diseases: Vec<String> = sqlx::query_scalar("SELECT disease_name FROM animal_diseases WHERE animal_id = ?")
+        .bind(a.id).fetch_all(&state.pool).await.unwrap_or_default();
+        
+    let animal = AnimalDetailResponse {
+        id: a.id, name: a.name, species: a.species, birth_year: a.birth_year, breed: a.breed.unwrap_or_default(),
+        is_vaccinated: a.is_vaccinated, is_dewormed: a.is_dewormed, behavior_dogs: a.behavior_dogs,
+        behavior_cats: a.behavior_cats, behavior_humans: a.behavior_humans.unwrap_or_default(), independence: a.independence, size: a.size, coat_color: a.coat_color,
+        predominant_color: a.predominant_color, coat_length: a.coat_length, description: a.description, is_active: a.is_active, diseases, photos,
+    };
+    
+    let tutors: Vec<PublicTutorContact> = sqlx::query_as(
+        "SELECT a.name, a.phone, a.email FROM admins a JOIN animal_tutors t ON a.id = t.admin_id WHERE t.animal_id = ? AND a.is_active = 1"
+    ).bind(id).fetch_all(&state.pool).await.unwrap_or_default();
+
+    Ok(Json(PublicAnimalDetail { animal, tutors }))
 }

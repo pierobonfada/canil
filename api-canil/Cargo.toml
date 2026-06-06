@@ -16,3 +16,9 @@ chrono = { version = "0.4", features = ["serde"] }
 tower-http = { version = "0.5", features = ["cors", "fs"] }
 uuid = { version = "1.8", features = ["v4"] }
 image = "0.25"
+[profile.release]
+opt-level = 3  # Otimizar para desempenho
+lto = true       # Link Time Optimization (remove código não utilizado)
+codegen-units = 1 # Reduz o paralelismo para maximizar a otimização
+panic = "abort"  # Remove o unwinding de panic, diminuindo o binário
+strip = true     # Remove símbolos de debug
