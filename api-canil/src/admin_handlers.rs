@@ -34,7 +34,7 @@ fn generate_temp_password(full_name: &str) -> String {
 }
 
 async fn check_master(claims: &Claims, state: &AppState) -> Result<AdminRecord, (StatusCode, Json<ErrorResponse>)> {
-    let admin = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_active, is_master, is_first_login, pref_show_inactive, pref_show_others, pref_sort_by, email FROM admins WHERE id = ?")
+    let admin = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_active, is_master, is_first_login, pref_show_inactive, pref_show_others, pref_sort_by, email, failed_attempts, is_locked FROM admins WHERE id = ?")
         .bind(claims.sub)
         .fetch_optional(&state.pool)
         .await
@@ -186,7 +186,7 @@ pub async fn get_system_logs(
     }
 
     if filters.log_type.is_none() || filters.log_type.as_deref() == Some("login") {
-        let mut query = String::from("SELECT id, \"login\" as log_type, severity, CASE WHEN success = 1 THEN 'Login bem-sucedido: ' || email ELSE 'Falha de login: ' || email END as description, NULL as admin_id, NULL as animal_id, remote_ip, timestamp FROM login_logs WHERE 1=1");
+        let mut query = String::from("SELECT id, \"login\" as log_type, severity, CASE WHEN success = 1 THEN 'Login bem-sucedido: ' || email ELSE 'Falha de login: ' || email END as description, CAST(NULL AS INTEGER) as admin_id, CAST(NULL AS INTEGER) as animal_id, remote_ip, timestamp FROM login_logs WHERE 1=1");
         if let Some(ref sev) = filters.severity { query.push_str(&format!(" AND severity = \"{}\"", sev)); }
         
         #[derive(sqlx::FromRow)]
@@ -198,7 +198,7 @@ pub async fn get_system_logs(
     }
 
     if filters.log_type.is_none() || filters.log_type.as_deref() == Some("security") {
-        let mut query = String::from("SELECT id, \"security\" as log_type, severity, msg as description, NULL as admin_id, NULL as animal_id, remote_ip, datetime as timestamp FROM security_warnings WHERE 1=1");
+        let mut query = String::from("SELECT id, \"security\" as log_type, severity, msg as description, CAST(NULL AS INTEGER) as admin_id, CAST(NULL AS INTEGER) as animal_id, remote_ip, datetime as timestamp FROM security_warnings WHERE 1=1");
         if let Some(ref sev) = filters.severity { query.push_str(&format!(" AND severity = \"{}\"", sev)); }
         
         #[derive(sqlx::FromRow)]

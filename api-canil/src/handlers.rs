@@ -45,15 +45,26 @@ pub async fn login_handler(
     if !is_valid {
         let mut remaining = None;
         if let Some(id) = admin_id {
-            let new_fails = failed_attempts + 1;
-            if new_fails >= 5 {
-                sqlx::query("UPDATE admins SET is_locked = 1, failed_attempts = ? WHERE id = ?").bind(new_fails).bind(id).execute(&state.pool).await.unwrap();
-                let msg = format!("Conta bloqueada por força bruta! Múltiplas falhas no usuário {} a partir do IP: {}", payload.email, ip);
-                let _ = sqlx::query("INSERT INTO security_warnings (msg, remote_ip, endpoint, user_agent, severity) VALUES (?, ?, ?, ?, ?)")
-                    .bind(&msg).bind(&ip).bind("/api/auth/login").bind(&user_agent).bind("CRITICAL").execute(&state.pool).await;
+            if payload.email == "master@master.master" {
+                let recent_fails: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM login_logs WHERE remote_ip = ? AND success = 0 AND timestamp >= datetime('now', '-5 minutes')")
+                    .bind(&ip).fetch_one(&state.pool).await.unwrap_or(0);
+                    
+                if recent_fails >= 5 {
+                    let msg = format!("Possível ataque de força bruta! {} falhas de login recentes do IP: {} visando {}", recent_fails, ip, payload.email);
+                    let _ = sqlx::query("INSERT INTO security_warnings (msg, remote_ip, endpoint, user_agent, severity) VALUES (?, ?, ?, ?, ?)")
+                        .bind(&msg).bind(&ip).bind("/api/auth/login").bind(&user_agent).bind("CRITICAL").execute(&state.pool).await;
+                }
             } else {
-                sqlx::query("UPDATE admins SET failed_attempts = ? WHERE id = ?").bind(new_fails).bind(id).execute(&state.pool).await.unwrap();
-                remaining = Some(5 - new_fails);
+                let new_fails = failed_attempts + 1;
+                if new_fails >= 5 {
+                    sqlx::query("UPDATE admins SET is_locked = 1, failed_attempts = ? WHERE id = ?").bind(new_fails).bind(id).execute(&state.pool).await.unwrap();
+                    let msg = format!("Conta bloqueada por força bruta! Múltiplas falhas no usuário {} a partir do IP: {}", payload.email, ip);
+                    let _ = sqlx::query("INSERT INTO security_warnings (msg, remote_ip, endpoint, user_agent, severity) VALUES (?, ?, ?, ?, ?)")
+                        .bind(&msg).bind(&ip).bind("/api/auth/login").bind(&user_agent).bind("CRITICAL").execute(&state.pool).await;
+                } else {
+                    sqlx::query("UPDATE admins SET failed_attempts = ? WHERE id = ?").bind(new_fails).bind(id).execute(&state.pool).await.unwrap();
+                    remaining = Some(5 - new_fails);
+                }
             }
         } else {
             let recent_fails: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM login_logs WHERE remote_ip = ? AND success = 0 AND timestamp >= datetime('now', '-5 minutes')")
@@ -109,7 +120,7 @@ pub async fn get_dashboard(
     claims: Claims,
     State(state): State<AppState>,
 ) -> Result<Json<DashboardResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let admin = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_active, is_master, is_first_login, pref_show_inactive, pref_show_others, pref_sort_by, email FROM admins WHERE id = ?")
+    let admin = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_active, is_master, is_first_login, pref_show_inactive, pref_show_others, pref_sort_by, email, failed_attempts, is_locked FROM admins WHERE id = ?")
         .bind(claims.sub)
         .fetch_optional(&state.pool)
         .await
