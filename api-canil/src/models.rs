@@ -161,6 +161,13 @@ pub struct UpdateAdminStatusRequest {
     pub is_locked: Option<bool>,
 }
 
+#[derive(Deserialize)]
+pub struct UpdateAdminRequest {
+    pub name: String,
+    pub email: String,
+    pub phone: String,
+}
+
 #[derive(Serialize)]
 pub struct SystemLog {
     pub id: i64,

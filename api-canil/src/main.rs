@@ -5,7 +5,7 @@ pub mod image_utils;
 pub mod models;
 
 use axum::{
-    routing::{get, patch, post},
+    routing::{get, patch, post, put},
     Router,
 };
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
@@ -13,7 +13,7 @@ use std::{env, net::SocketAddr, str::FromStr};
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 
-use crate::admin_handlers::{create_admin, get_admins, get_system_logs, update_admin_status};
+use crate::admin_handlers::{create_admin, get_admins, get_system_logs, update_admin_status, update_admin};
 use crate::handlers::{
     change_password, create_animal, get_animal, get_animals, get_dashboard, login_handler,
     toggle_tutorship, update_animal, update_animal_status, update_preferences,
@@ -50,6 +50,7 @@ async fn main() {
         .nest_service("/uploads", ServeDir::new("uploads"))
                 .route("/api/auth/login", post(login_handler))
         .route("/api/admins", get(get_admins).post(create_admin))
+        .route("/api/admins/:id", put(update_admin))
         .route("/api/admins/:id/status", patch(update_admin_status))
         .route("/api/logs", get(get_system_logs))
         .route("/api/auth/password", patch(change_password))

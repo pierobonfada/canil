@@ -6,7 +6,7 @@ use axum::{
 
 use crate::models::{
     AdminListItem, AdminRecord, AppState, Claims, CreateAdminRequest, ErrorResponse, LogFilters,
-    SystemLog, UpdateAdminStatusRequest,
+    SystemLog, UpdateAdminStatusRequest, UpdateAdminRequest,
 };
 
 fn generate_temp_password(full_name: &str) -> String {
@@ -211,4 +211,44 @@ pub async fn get_system_logs(
 
     logs.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
     Ok(Json(logs))
+}
+
+pub async fn update_admin(
+    Path(id): Path<i64>,
+    claims: Claims,
+    State(state): State<AppState>,
+    Json(payload): Json<UpdateAdminRequest>,
+) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
+    check_master(&claims, &state).await?;
+
+    let target_admin = sqlx::query!("SELECT email FROM admins WHERE id = ?", id)
+        .fetch_optional(&state.pool)
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro no banco".to_string(), remaining_attempts: None })))?
+        .ok_or((StatusCode::NOT_FOUND, Json(ErrorResponse { error: "Admin não encontrado".to_string(), remaining_attempts: None })))?;
+
+    if target_admin.email == "master@master.master" && payload.email != "master@master.master" {
+        return Err((StatusCode::FORBIDDEN, Json(ErrorResponse { error: "Não pode alterar o e-mail do master principal".to_string(), remaining_attempts: None })));
+    }
+
+    let email_exists = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM admins WHERE email = ? AND id != ?")
+        .bind(&payload.email).bind(id)
+        .fetch_one(&state.pool)
+        .await
+        .unwrap_or(0);
+
+    if email_exists > 0 {
+        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "E-mail já cadastrado".to_string(), remaining_attempts: None })));
+    }
+
+    sqlx::query("UPDATE admins SET name = ?, email = ?, phone = ? WHERE id = ?")
+        .bind(&payload.name).bind(&payload.email).bind(&payload.phone).bind(id)
+        .execute(&state.pool)
+        .await
+        .unwrap();
+
+    sqlx::query("INSERT INTO action_logs (admin_id, action, severity) VALUES (?, ?, \"WARNING\")")
+        .bind(claims.sub).bind(format!("Atualizou dados do admin ID: {}", id)).execute(&state.pool).await.unwrap();
+
+    Ok(Json("Administrador atualizado com sucesso!".to_string()))
 }
