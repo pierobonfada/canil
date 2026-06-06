@@ -103,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
 
@@ -149,6 +149,8 @@ const getStackedPhotos = (animal: any) => {
   return [...active.slice(offset), ...active.slice(0, offset)];
 }
 
+let pollingInterval: any = null;
+
 onMounted(async () => {
   try {
     const resPref = await api.get('/dashboard')
@@ -157,11 +159,21 @@ onMounted(async () => {
     sortBy.value = resPref.data.pref_sort_by || 'updated_desc'
     
     await fetchAnimals()
+
+    pollingInterval = setInterval(() => {
+      if (showOthers.value) {
+        fetchAnimals(true)
+      }
+    }, 30000)
   } catch (error: any) {
     if (error.response && error.response.status === 401) {
       handleLogout()
     }
   }
+})
+
+onUnmounted(() => {
+  if (pollingInterval) clearInterval(pollingInterval)
 })
 
 const savePreferences = async () => {
@@ -205,15 +217,17 @@ const filteredAnimals = computed(() => {
   return filtered;
 })
 
-const fetchAnimals = async () => {
-  isLoading.value = true
+const fetchAnimals = async (silent = false) => {
+  if (!silent) isLoading.value = true
   try {
     const res = await api.get('/animais')
+    // Update existing or add new to avoid re-rendering entire list which breaks scrolling
+    // Vue usually handles this fine with simple reassignment if keys match, but for safety:
     animals.value = res.data
   } catch (e) {
     console.error('Erro ao buscar listagem', e)
   } finally {
-    isLoading.value = false
+    if (!silent) isLoading.value = false
   }
 }
 

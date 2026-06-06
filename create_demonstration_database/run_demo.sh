@@ -12,4 +12,4 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Run the python script
-python create_demonstration.py
+python create_demonstration.py "$@"

@@ -184,7 +184,12 @@ pub async fn create_animal(
     for (index, path) in photos.iter().enumerate() { sqlx::query("INSERT INTO animal_photos (animal_id, file_path, is_primary, is_active) VALUES (?, ?, ?, 1)").bind(animal_id).bind(path).bind(index == 0).execute(&mut *tx).await.unwrap(); }
     
     sqlx::query("INSERT INTO animal_tutors (animal_id, admin_id) VALUES (?, ?)").bind(animal_id).bind(claims.sub).execute(&mut *tx).await.unwrap();
-    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', NULL)").bind(claims.sub).bind(format!("Cadastrou o animal {}", name)).execute(&mut *tx).await.unwrap();
+    let admin_name: String = sqlx::query_scalar("SELECT name FROM admins WHERE id = ?").bind(claims.sub).fetch_one(&mut *tx).await.unwrap_or_else(|_| "Desconhecido".to_string());
+    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', ?)")
+        .bind(claims.sub)
+        .bind(format!("O administrador {} (ID: {}) cadastrou o animal \"{}\" (ID: {})", admin_name, claims.sub, name, animal_id))
+        .bind(animal_id)
+        .execute(&mut *tx).await.unwrap();
     
     tx.commit().await.unwrap();
     Ok(Json("Animal cadastrado!".to_string()))
@@ -345,7 +350,12 @@ pub async fn update_animal(
             .bind(id).bind(&path).bind(is_prim).execute(&mut *tx).await.unwrap();
     }
 
-    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', NULL)").bind(claims.sub).bind(format!("Editou o animal \"{}\" (id={})", name, id)).execute(&mut *tx).await.unwrap();
+    let admin_name: String = sqlx::query_scalar("SELECT name FROM admins WHERE id = ?").bind(claims.sub).fetch_one(&mut *tx).await.unwrap_or_else(|_| "Desconhecido".to_string());
+    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', ?)")
+        .bind(claims.sub)
+        .bind(format!("O administrador {} (ID: {}) editou o animal \"{}\" (ID: {})", admin_name, claims.sub, name, id))
+        .bind(id)
+        .execute(&mut *tx).await.unwrap();
     tx.commit().await.unwrap();
     Ok(Json("Animal atualizado!".to_string()))
 }
@@ -356,9 +366,12 @@ pub async fn update_animal_status(
     Path(id): Path<i64>,
     Json(payload): Json<StatusPayload>,
 ) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
+    let admin_name: String = sqlx::query_scalar("SELECT name FROM admins WHERE id = ?").bind(claims.sub).fetch_one(&state.pool).await.unwrap_or_else(|_| "Desconhecido".to_string());
+    let animal_name: String = sqlx::query_scalar("SELECT name FROM animals WHERE id = ?").bind(id).fetch_one(&state.pool).await.unwrap_or_else(|_| "Desconhecido".to_string());
     sqlx::query("UPDATE animals SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(payload.is_active).bind(id).execute(&state.pool).await.unwrap();
-    let action_str = if payload.is_active { "Restaurou" } else { "Inativou" };
-    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', NULL)").bind(claims.sub).bind(format!("{} o animal ID: {}", action_str, id)).execute(&state.pool).await.unwrap();
+    let action_str = if payload.is_active { "restaurou" } else { "inativou" };
+    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', ?)")
+        .bind(claims.sub).bind(format!("O administrador {} (ID: {}) {} o animal \"{}\" (ID: {})", admin_name, claims.sub, action_str, animal_name, id)).bind(id).execute(&state.pool).await.unwrap();
     Ok(Json("Status alterado".to_string()))
 }
 
@@ -370,18 +383,23 @@ pub async fn toggle_tutorship(
     let mut tx = state.pool.begin().await.unwrap();
     let is_tutor: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM animal_tutors WHERE animal_id = ? AND admin_id = ?)").bind(id).bind(claims.sub).fetch_one(&mut *tx).await.unwrap_or(false);
 
+    let admin_name: String = sqlx::query_scalar("SELECT name FROM admins WHERE id = ?").bind(claims.sub).fetch_one(&mut *tx).await.unwrap_or_else(|_| "Desconhecido".to_string());
+    let animal_name: String = sqlx::query_scalar("SELECT name FROM animals WHERE id = ?").bind(id).fetch_one(&mut *tx).await.unwrap_or_else(|_| "Desconhecido".to_string());
+
     if is_tutor {
         let count: i32 = sqlx::query_scalar("SELECT COUNT(*) FROM animal_tutors WHERE animal_id = ?").bind(id).fetch_one(&mut *tx).await.unwrap_or(0);
         if count <= 1 { return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Você é o único responsável. Adicione outro tutor antes de sair.".to_string(), remaining_attempts: None }))); }
         sqlx::query("DELETE FROM animal_tutors WHERE animal_id = ? AND admin_id = ?").bind(id).bind(claims.sub).execute(&mut *tx).await.unwrap();
         sqlx::query("UPDATE animals SET updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(id).execute(&mut *tx).await.unwrap();
-        sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', NULL)").bind(claims.sub).bind(format!("Removeu tutoria do animal ID: {}", id)).execute(&mut *tx).await.unwrap();
+        sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', ?)")
+            .bind(claims.sub).bind(format!("O administrador {} (ID: {}) removeu tutoria do animal \"{}\" (ID: {})", admin_name, claims.sub, animal_name, id)).bind(id).execute(&mut *tx).await.unwrap();
         tx.commit().await.unwrap();
         Ok(Json("Tutoria removida".to_string()))
     } else {
         sqlx::query("INSERT INTO animal_tutors (animal_id, admin_id) VALUES (?, ?)").bind(id).bind(claims.sub).execute(&mut *tx).await.unwrap();
         sqlx::query("UPDATE animals SET updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(id).execute(&mut *tx).await.unwrap();
-        sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', NULL)").bind(claims.sub).bind(format!("Assumiu tutoria do animal ID: {}", id)).execute(&mut *tx).await.unwrap();
+        sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', ?)")
+            .bind(claims.sub).bind(format!("O administrador {} (ID: {}) assumiu tutoria do animal \"{}\" (ID: {})", admin_name, claims.sub, animal_name, id)).bind(id).execute(&mut *tx).await.unwrap();
         tx.commit().await.unwrap();
         Ok(Json("Tutoria assumida".to_string()))
     }

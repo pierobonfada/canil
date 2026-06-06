@@ -104,9 +104,22 @@ def create_animal(token, species, name, photo_path):
         else:
             print(f"Success: {name}")
 
+import sys
+
 def main():
+    if len(sys.argv) < 2 or (sys.argv[1] not in ['--create', '--clear']):
+        print("Uso do script:")
+        print("  --create   Limpa os dados antigos e cria novos dados de demonstração.")
+        print("  --clear    Apenas remove os dados de demonstração (não cria novos).")
+        return
+
     os.makedirs('photos', exist_ok=True)
     cleanup()
+
+    if '--clear' in sys.argv:
+        print("Clear mode enabled. Exiting sem criar novos animais.")
+        return
+
     setup_db_user()
     token = login()
 
