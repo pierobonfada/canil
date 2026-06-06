@@ -20,6 +20,7 @@ pub struct LoginResponse {
 #[derive(Serialize)]
 pub struct ErrorResponse {
     pub error: String,
+    pub remaining_attempts: Option<i32>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -39,6 +40,8 @@ pub struct AdminRecord {
     pub pref_show_inactive: bool,
     pub pref_show_others: bool,
     pub pref_sort_by: String,
+    pub failed_attempts: i32,
+    pub is_locked: bool,
 }
 
 #[derive(Clone)]
@@ -139,6 +142,7 @@ pub struct AdminListItem {
     pub phone: String,
     pub is_active: bool,
     pub is_master: bool,
+    pub is_locked: bool,
 }
 
 #[derive(Deserialize)]
@@ -154,6 +158,7 @@ pub struct UpdateAdminStatusRequest {
     pub is_active: Option<bool>,
     pub is_master: Option<bool>,
     pub force_password_reset: Option<bool>,
+    pub is_locked: Option<bool>,
 }
 
 #[derive(Serialize)]

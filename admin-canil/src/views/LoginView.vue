@@ -29,11 +29,18 @@
 
         <div v-if="errorMessage" class="error-message">
           {{ errorMessage }}
+          <div v-if="remainingAttempts !== null && remainingAttempts > 0" class="attempts-warning">
+            Tentativas restantes: <strong>{{ remainingAttempts }}</strong>
+          </div>
         </div>
 
         <button type="submit" :disabled="isLoading">
           {{ isLoading ? 'Entrando...' : 'Entrar' }}
         </button>
+        
+        <div class="legal-warning">
+          ⚠️ <strong>Aviso de Segurança:</strong> Todas as tentativas de acesso, endereço IP e dados do navegador são monitorados e registrados pelo sistema de auditoria para detecção de intrusões. O bloqueio ocorrerá após 5 tentativas falhas.
+        </div>
       </form>
     </div>
   </div>
@@ -48,11 +55,13 @@ const router = useRouter()
 const email = ref('')
 const password = ref('')
 const errorMessage = ref('')
+const remainingAttempts = ref<number | null>(null)
 const isLoading = ref(false)
 
 const handleLogin = async () => {
   isLoading.value = true
   errorMessage.value = ''
+  remainingAttempts.value = null
   
   try {
     const response = await api.post('/auth/login', {
@@ -74,6 +83,9 @@ const handleLogin = async () => {
   } catch (error: any) {
     if (error.response && error.response.data && error.response.data.error) {
       errorMessage.value = error.response.data.error
+      if (error.response.data.remaining_attempts !== undefined) {
+        remainingAttempts.value = error.response.data.remaining_attempts
+      }
     } else {
       errorMessage.value = 'Erro ao conectar com o servidor.'
     }
@@ -169,5 +181,22 @@ button:disabled {
   border-radius: 4px;
   margin-bottom: 1rem;
   font-size: 0.9rem;
+}
+
+.attempts-warning {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #991b1b;
+}
+
+.legal-warning {
+  margin-top: 1.5rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+  background: #f9fafb;
+  padding: 0.8rem;
+  border-radius: 6px;
+  border: 1px dashed #d1d5db;
+  text-align: left;
 }
 </style>

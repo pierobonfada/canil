@@ -57,6 +57,7 @@ where
                     StatusCode::UNAUTHORIZED,
                     Json(ErrorResponse {
                         error: "Token ausente".to_string(),
+                        remaining_attempts: None
                     }),
                 ));
             }
@@ -80,7 +81,7 @@ where
                     r#"
                     INSERT INTO security_warnings 
                     (msg, remote_ip, endpoint, user_agent, severity) 
-                    VALUES (?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?)
                     "#
                 )
                 .bind(&msg)
@@ -95,6 +96,7 @@ where
                     StatusCode::UNAUTHORIZED,
                     Json(ErrorResponse {
                         error: "Token inválido ou expirado".to_string(),
+                        remaining_attempts: None
                     }),
                 ));
             }
@@ -108,10 +110,17 @@ where
             .unwrap_or(false);
 
         if !is_active {
+            let msg = format!("Tentativa de acesso com conta desativada (ID: {})", token_data.claims.sub);
+            let _ = sqlx::query(
+                "INSERT INTO security_warnings (msg, remote_ip, endpoint, user_agent, severity) VALUES (?, ?, ?, ?, 'CRITICAL')"
+            )
+            .bind(&msg).bind(&ip).bind(&endpoint).bind(&user_agent).execute(&app_state.pool).await;
+
             return Err((
                 StatusCode::UNAUTHORIZED,
                 Json(ErrorResponse {
                     error: "Conta desativada".to_string(),
+                    remaining_attempts: None
                 }),
             ));
         }

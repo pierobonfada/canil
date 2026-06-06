@@ -17,13 +17,60 @@ use crate::models::{
 pub async fn login_handler(
     State(state): State<AppState>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: axum::http::HeaderMap,
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, (StatusCode, Json<ErrorResponse>)> {
     let ip = addr.ip().to_string();
-    let admin_opt = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_active, is_master, is_first_login, pref_show_inactive, pref_show_others, pref_sort_by, email FROM admins WHERE email = ?").bind(&payload.email).fetch_optional(&state.pool).await.map_err(|_| {(StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro no banco".to_string() }))})?;
-    let (is_valid, admin_id, is_first, pref_inactive, pref_others, pref_sort, is_master) = match &admin_opt { Some(a) => (a.is_active && verify(&payload.password, &a.password).unwrap_or(false), Some(a.id), a.is_first_login, a.pref_show_inactive, a.pref_show_others, a.pref_sort_by.clone(), a.is_master), None => (false, None, false, false, false, "updated_desc".to_string(), false) };
-    let _ = sqlx::query("INSERT INTO login_logs (email, success, remote_ip, severity) VALUES (?, ?, ?, 'INFO')").bind(&payload.email).bind(is_valid).bind(&ip).execute(&state.pool).await;
-    if !is_valid { return Err((StatusCode::UNAUTHORIZED, Json(ErrorResponse { error: "Credenciais inválidas".to_string() }))); }
+    let user_agent = headers.get(axum::http::header::USER_AGENT).and_then(|v| v.to_str().ok()).unwrap_or("Desconhecido").to_string();
+    
+    let admin_opt = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_active, is_master, is_first_login, pref_show_inactive, pref_show_others, pref_sort_by, email, failed_attempts, is_locked FROM admins WHERE email = ?").bind(&payload.email).fetch_optional(&state.pool).await.map_err(|_| {(StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro no banco".to_string(), remaining_attempts: None }))})?;
+    
+    if let Some(admin) = &admin_opt {
+        if admin.is_locked {
+            let _ = sqlx::query("INSERT INTO login_logs (email, success, remote_ip, severity) VALUES (?, 0, ?, 'WARNING')")
+                .bind(&payload.email).bind(&ip).execute(&state.pool).await;
+            return Err((StatusCode::FORBIDDEN, Json(ErrorResponse { error: "Sua conta foi bloqueada por excesso de tentativas. Contate um administrador Master.".to_string(), remaining_attempts: None })));
+        }
+    }
+
+    let (is_valid, admin_id, is_first, pref_inactive, pref_others, pref_sort, is_master, failed_attempts) = match &admin_opt { 
+        Some(a) => (a.is_active && verify(&payload.password, &a.password).unwrap_or(false), Some(a.id), a.is_first_login, a.pref_show_inactive, a.pref_show_others, a.pref_sort_by.clone(), a.is_master, a.failed_attempts), 
+        None => (false, None, false, false, false, "updated_desc".to_string(), false, 0) 
+    };
+    
+    let severity = if is_valid { "INFO" } else { "WARNING" };
+    let _ = sqlx::query("INSERT INTO login_logs (email, success, remote_ip, severity) VALUES (?, ?, ?, ?)")
+        .bind(&payload.email).bind(is_valid).bind(&ip).bind(severity).execute(&state.pool).await;
+        
+    if !is_valid {
+        let mut remaining = None;
+        if let Some(id) = admin_id {
+            let new_fails = failed_attempts + 1;
+            if new_fails >= 5 {
+                sqlx::query("UPDATE admins SET is_locked = 1, failed_attempts = ? WHERE id = ?").bind(new_fails).bind(id).execute(&state.pool).await.unwrap();
+                let msg = format!("Conta bloqueada por força bruta! Múltiplas falhas no usuário {} a partir do IP: {}", payload.email, ip);
+                let _ = sqlx::query("INSERT INTO security_warnings (msg, remote_ip, endpoint, user_agent, severity) VALUES (?, ?, ?, ?, ?)")
+                    .bind(&msg).bind(&ip).bind("/api/auth/login").bind(&user_agent).bind("CRITICAL").execute(&state.pool).await;
+            } else {
+                sqlx::query("UPDATE admins SET failed_attempts = ? WHERE id = ?").bind(new_fails).bind(id).execute(&state.pool).await.unwrap();
+                remaining = Some(5 - new_fails);
+            }
+        } else {
+            let recent_fails: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM login_logs WHERE remote_ip = ? AND success = 0 AND timestamp >= datetime('now', '-5 minutes')")
+                .bind(&ip).fetch_one(&state.pool).await.unwrap_or(0);
+                
+            if recent_fails >= 5 {
+                let msg = format!("Possível ataque de força bruta! {} falhas de login recentes do IP: {} visando {}", recent_fails, ip, payload.email);
+                let _ = sqlx::query("INSERT INTO security_warnings (msg, remote_ip, endpoint, user_agent, severity) VALUES (?, ?, ?, ?, ?)")
+                    .bind(&msg).bind(&ip).bind("/api/auth/login").bind(&user_agent).bind("CRITICAL").execute(&state.pool).await;
+            }
+        }
+        return Err((StatusCode::UNAUTHORIZED, Json(ErrorResponse { error: "Credenciais inválidas".to_string(), remaining_attempts: remaining }))); 
+    }
+    
+    if admin_id.is_some() {
+        sqlx::query("UPDATE admins SET failed_attempts = 0 WHERE id = ?").bind(admin_id.unwrap()).execute(&state.pool).await.unwrap();
+    }
     let expiration = Utc::now().checked_add_signed(Duration::hours(24)).expect("Erro").timestamp() as usize;
     let claims = Claims { sub: admin_id.unwrap(), exp: expiration };
     let secret = env::var("JWT_SECRET").expect("JWT_SECRET não configurada");
@@ -54,7 +101,7 @@ pub async fn update_preferences(
         .bind(claims.sub)
         .execute(&state.pool)
         .await
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro ao salvar preferências".to_string() })))?;
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro ao salvar preferências".to_string(), remaining_attempts: None })))?;
     Ok(Json("Preferências salvas".to_string()))
 }
 
@@ -68,7 +115,7 @@ pub async fn get_dashboard(
         .await
         .map_err(|e| {
             println!("DB ERROR in get_dashboard: {:?}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro no banco".to_string() }))
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro no banco".to_string(), remaining_attempts: None }))
         })?;
 
     match admin {
@@ -79,7 +126,7 @@ pub async fn get_dashboard(
             pref_show_others: a.pref_show_others,
             pref_sort_by: a.pref_sort_by,
         })),
-        None => Err((StatusCode::UNAUTHORIZED, Json(ErrorResponse { error: "Usuário inválido".to_string() })))
+        None => Err((StatusCode::UNAUTHORIZED, Json(ErrorResponse { error: "Usuário inválido".to_string(), remaining_attempts: None })))
     }
 }
 
@@ -194,7 +241,7 @@ pub async fn get_animal(
         .unwrap();
 
     if animal.is_none() { 
-        return Err((StatusCode::NOT_FOUND, Json(ErrorResponse { error: "Animal não encontrado".to_string() }))); 
+        return Err((StatusCode::NOT_FOUND, Json(ErrorResponse { error: "Animal não encontrado".to_string(), remaining_attempts: None }))); 
     }
     let a = animal.unwrap();
     
@@ -287,7 +334,7 @@ pub async fn update_animal(
             .bind(id).bind(&path).bind(is_prim).execute(&mut *tx).await.unwrap();
     }
 
-    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', NULL)").bind(claims.sub).bind(format!("Editou o animal ID: {}", id)).execute(&mut *tx).await.unwrap();
+    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', NULL)").bind(claims.sub).bind(format!("Editou o animal \"{}\" (id={})", name, id)).execute(&mut *tx).await.unwrap();
     tx.commit().await.unwrap();
     Ok(Json("Animal atualizado!".to_string()))
 }
@@ -314,7 +361,7 @@ pub async fn toggle_tutorship(
 
     if is_tutor {
         let count: i32 = sqlx::query_scalar("SELECT COUNT(*) FROM animal_tutors WHERE animal_id = ?").bind(id).fetch_one(&mut *tx).await.unwrap_or(0);
-        if count <= 1 { return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Você é o único responsável. Adicione outro tutor antes de sair.".to_string() }))); }
+        if count <= 1 { return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Você é o único responsável. Adicione outro tutor antes de sair.".to_string(), remaining_attempts: None }))); }
         sqlx::query("DELETE FROM animal_tutors WHERE animal_id = ? AND admin_id = ?").bind(id).bind(claims.sub).execute(&mut *tx).await.unwrap();
         sqlx::query("UPDATE animals SET updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(id).execute(&mut *tx).await.unwrap();
         sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', NULL)").bind(claims.sub).bind(format!("Removeu tutoria do animal ID: {}", id)).execute(&mut *tx).await.unwrap();

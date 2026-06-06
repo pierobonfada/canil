@@ -81,7 +81,9 @@ async fn init_db(pool: &sqlx::SqlitePool) {
             is_first_login INTEGER NOT NULL DEFAULT 1,
             pref_show_inactive INTEGER NOT NULL DEFAULT 0,
             pref_show_others INTEGER NOT NULL DEFAULT 0,
-            pref_sort_by TEXT NOT NULL DEFAULT 'updated_desc'
+            pref_sort_by TEXT NOT NULL DEFAULT 'updated_desc',
+            failed_attempts INTEGER NOT NULL DEFAULT 0,
+            is_locked INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS login_logs (
@@ -162,7 +164,7 @@ async fn init_db(pool: &sqlx::SqlitePool) {
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM admins").fetch_one(pool).await.unwrap_or(0);
     if count == 0 {
         let default_password = bcrypt::hash("master", bcrypt::DEFAULT_COST).unwrap();
-        sqlx::query("INSERT INTO admins (name, email, phone, password, is_first_login) VALUES (?, ?, ?, ?, 1)")
+        sqlx::query("INSERT INTO admins (name, email, phone, password, is_first_login, is_master) VALUES (?, ?, ?, ?, 1, 1)")
             .bind("Administrador principal do sistema")
             .bind("master@master.master")
             .bind("")

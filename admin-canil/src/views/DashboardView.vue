@@ -253,11 +253,27 @@ const handleLogout = () => {
 }
 .top-bar h2 { margin: 0; font-size: 1.4rem; font-weight: 600; }
 
-.btn-logout {
-  background-color: transparent; border: 1px solid rgba(255,255,255,0.5); color: white; 
-  padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s;
+.header-actions {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
 }
-.btn-logout:hover { background-color: white; color: #166534; border-color: white; }
+
+.btn-master, .btn-logout {
+  background-color: rgba(255,255,255,0.1); 
+  border: 1px solid rgba(255,255,255,0.3); 
+  color: white; 
+  padding: 0.5rem 1rem; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  font-weight: 600; 
+  transition: 0.2s;
+}
+.btn-master:hover, .btn-logout:hover { 
+  background-color: white; 
+  color: #166534; 
+  border-color: white; 
+}
 
 .content { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
 
@@ -342,8 +358,9 @@ button { padding: 0.8rem; border: none; border-radius: 8px; font-weight: bold; c
 .btn-restore:hover { background: #16a34a; }
 
 @media (max-width: 768px) {
-  .top-bar { padding: 1rem; }
-  .top-bar h2 { font-size: 1.1rem; }
+  .top-bar { padding: 1rem; flex-direction: column; gap: 1rem; text-align: center; }
+  .top-bar h2 { font-size: 1.3rem; }
+  .header-actions { flex-wrap: wrap; justify-content: center; }
   .controls-row-top { flex-direction: column; gap: 0.8rem; }
   .btn-add-pet { width: 100%; text-align: center; }
   .toggle-filters { flex-direction: column; gap: 1rem; align-items: flex-start;}

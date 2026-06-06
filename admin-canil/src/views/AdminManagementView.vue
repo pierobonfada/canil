@@ -38,16 +38,20 @@
             <td>{{ admin.email }}</td>
             <td>{{ admin.is_master ? 'Sim' : 'Não' }}</td>
             <td>
-              <span :class="admin.is_active ? 'badge-green' : 'badge-red'">
+              <span v-if="admin.is_locked" class="badge-black">🔒 Bloqueado</span>
+              <span v-else :class="admin.is_active ? 'badge-green' : 'badge-red'">
                 {{ admin.is_active ? 'Ativo' : 'Inativo' }}
               </span>
             </td>
             <td>
-              <button @click="toggleStatus(admin)" class="btn-sm btn-warn">
+              <button v-if="admin.email !== 'master@master.master'" @click="toggleStatus(admin)" class="btn-sm btn-warn">
                 {{ admin.is_active ? 'Desativar' : 'Reativar' }}
               </button>
-              <button @click="toggleMaster(admin)" class="btn-sm btn-purple">
+              <button v-if="admin.email !== 'master@master.master'" @click="toggleMaster(admin)" class="btn-sm btn-purple">
                 {{ admin.is_master ? 'Remover Master' : 'Tornar Master' }}
+              </button>
+              <button v-if="admin.is_locked" @click="unlockAccount(admin)" class="btn-sm btn-green">
+                🔓 Desbloquear
               </button>
               <button @click="forcePasswordReset(admin)" class="btn-sm btn-danger">
                 Resetar Senha
@@ -113,6 +117,17 @@ const toggleMaster = async (admin: any) => {
   }
 }
 
+const unlockAccount = async (admin: any) => {
+  if (!confirm(`Tem certeza que deseja desbloquear a conta de ${admin.name}?`)) return;
+  try {
+    const res = await api.patch(`/admins/${admin.id}/status`, { is_locked: false })
+    alert(res.data)
+    fetchAdmins()
+  } catch (error: any) {
+    alert(error.response?.data?.error || "Erro ao desbloquear")
+  }
+}
+
 const forcePasswordReset = async (admin: any) => {
   if (!confirm(`Tem certeza que deseja forçar o reset de senha para ${admin.name}?`)) return;
   try {
@@ -141,8 +156,10 @@ onMounted(() => {
 .inactive-row { background-color: #fef2f2; color: #666; }
 .badge-green { background: #d1fae5; color: #065f46; padding: 0.2rem 0.5rem; border-radius: 99px; font-size: 0.8rem; }
 .badge-red { background: #fee2e2; color: #991b1b; padding: 0.2rem 0.5rem; border-radius: 99px; font-size: 0.8rem; }
-.btn-sm { margin-right: 0.5rem; padding: 0.3rem 0.6rem; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; color: white; }
+.badge-black { background: #1f2937; color: #ffffff; padding: 0.2rem 0.5rem; border-radius: 99px; font-size: 0.8rem; display: inline-block; }
+.btn-sm { margin-right: 0.5rem; padding: 0.3rem 0.6rem; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; color: white; margin-bottom: 0.2rem; }
 .btn-warn { background: #f59e0b; }
 .btn-purple { background: #8b5cf6; }
 .btn-danger { background: #ef4444; }
+.btn-green { background: #10b981; }
 </style>
