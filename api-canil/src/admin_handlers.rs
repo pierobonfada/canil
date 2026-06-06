@@ -93,7 +93,7 @@ pub async fn create_admin(
     }
 
     sqlx::query("INSERT INTO action_logs (admin_id, action, severity) VALUES (?, ?, \"WARNING\")")
-        .bind(claims.sub).bind(format!("Criou novo admin: {}", payload.email)).execute(&state.pool).await.unwrap();
+        .bind(claims.sub).bind(format!("Administrador master {} acrescentou o administrador {}", req_admin.email, payload.email)).execute(&state.pool).await.unwrap();
 
     Ok(Json(format!("Administrador criado! A senha padrão é: {}", temp_password)))
 }
@@ -132,6 +132,10 @@ pub async fn update_admin_status(
             return Err((StatusCode::FORBIDDEN, Json(ErrorResponse { error: "Não pode desativar o master principal.".to_string(), remaining_attempts: None })));
         }
         sqlx::query("UPDATE admins SET is_active = ? WHERE id = ?").bind(is_active).bind(id).execute(&state.pool).await.unwrap();
+        
+        let action_str = if is_active { "ativou" } else { "desativou" };
+        sqlx::query("INSERT INTO action_logs (admin_id, action, severity) VALUES (?, ?, \"WARNING\")")
+            .bind(claims.sub).bind(format!("Administrador master {} {} o administrador {}", req_admin.email, action_str, target_email)).execute(&state.pool).await.unwrap();
     }
 
     if let Some(force_reset) = payload.force_password_reset {
@@ -156,8 +160,10 @@ pub async fn update_admin_status(
         }
     }
 
-    sqlx::query("INSERT INTO action_logs (admin_id, action, severity) VALUES (?, ?, \"WARNING\")")
-        .bind(claims.sub).bind(format!("Atualizou status do admin: {}", target_email)).execute(&state.pool).await.unwrap();
+    if payload.is_active.is_none() && payload.force_password_reset.is_none() && payload.is_locked.is_none() && payload.is_master.is_some() {
+        sqlx::query("INSERT INTO action_logs (admin_id, action, severity) VALUES (?, ?, \"WARNING\")")
+            .bind(claims.sub).bind(format!("Atualizou status do admin: {}", target_email)).execute(&state.pool).await.unwrap();
+    }
 
     Ok(Json(response_msg))
 }
@@ -251,4 +257,33 @@ pub async fn update_admin(
         .bind(claims.sub).bind(format!("Atualizou dados do admin ID: {}", id)).execute(&state.pool).await.unwrap();
 
     Ok(Json("Administrador atualizado com sucesso!".to_string()))
+}
+
+pub async fn delete_admin(
+    Path(id): Path<i64>,
+    claims: Claims,
+    State(state): State<AppState>,
+) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
+    let req_admin = check_master(&claims, &state).await?;
+
+    let target_admin = sqlx::query!("SELECT email FROM admins WHERE id = ?", id)
+        .fetch_optional(&state.pool)
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro no banco".to_string(), remaining_attempts: None })))?
+        .ok_or((StatusCode::NOT_FOUND, Json(ErrorResponse { error: "Admin não encontrado".to_string(), remaining_attempts: None })))?;
+
+    if target_admin.email == "master@master.master" {
+        return Err((StatusCode::FORBIDDEN, Json(ErrorResponse { error: "Não pode remover o master principal".to_string(), remaining_attempts: None })));
+    }
+
+    sqlx::query("DELETE FROM admins WHERE id = ?")
+        .bind(id)
+        .execute(&state.pool)
+        .await
+        .unwrap();
+
+    sqlx::query("INSERT INTO action_logs (admin_id, action, severity) VALUES (?, ?, \"WARNING\")")
+        .bind(claims.sub).bind(format!("Administrador master {} removeu o administrador {}", req_admin.email, target_admin.email)).execute(&state.pool).await.unwrap();
+
+    Ok(Json("Administrador removido com sucesso!".to_string()))
 }

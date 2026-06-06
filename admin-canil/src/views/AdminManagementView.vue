@@ -58,6 +58,9 @@
               <button v-if="admin.is_locked" @click="unlockAccount(admin)" class="btn-sm btn-green">
                 🔓 Desbloquear
               </button>
+              <button v-if="admin.email !== 'master@master.master'" @click="deleteAdmin(admin)" class="btn-sm btn-danger">
+                🗑️ Excluir
+              </button>
               <button @click="forcePasswordReset(admin)" class="btn-sm btn-danger">
                 Resetar Senha
               </button>
@@ -169,6 +172,17 @@ const createAdmin = async () => {
     fetchAdmins()
   } catch (error: any) {
     alert(error.response?.data?.error || "Erro ao criar admin")
+  }
+}
+
+const deleteAdmin = async (admin: any) => {
+  if (!confirm(`Tem certeza que deseja APAGAR DEFINITIVAMENTE a conta de ${admin.name}?`)) return;
+  try {
+    const res = await api.delete(`/admins/${admin.id}`)
+    alert(res.data)
+    fetchAdmins()
+  } catch (error: any) {
+    alert(error.response?.data?.error || "Erro ao excluir")
   }
 }
 
