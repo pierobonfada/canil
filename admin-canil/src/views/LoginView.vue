@@ -62,6 +62,7 @@ const handleLogin = async () => {
     
     // Salva o token no LocalStorage
     localStorage.setItem('authToken', response.data.token)
+    localStorage.setItem('isMaster', response.data.is_master ? '1' : '0')
     
     // Verifica a flag do backend
     if (response.data.is_first_login) {

@@ -20,15 +20,15 @@ pub async fn login_handler(
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, (StatusCode, Json<ErrorResponse>)> {
     let ip = addr.ip().to_string();
-    let admin_opt = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_first_login, pref_show_inactive, pref_show_others, pref_sort_by, is_active FROM admins WHERE email = ?").bind(&payload.email).fetch_optional(&state.pool).await.map_err(|_| {(StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro no banco".to_string() }))})?;
-    let (is_valid, admin_id, is_first, pref_inactive, pref_others, pref_sort) = match &admin_opt { Some(a) => (a.is_active && verify(&payload.password, &a.password).unwrap_or(false), Some(a.id), a.is_first_login, a.pref_show_inactive, a.pref_show_others, a.pref_sort_by.clone()), None => (false, None, false, false, false, "updated_desc".to_string()) };
-    let _ = sqlx::query("INSERT INTO login_logs (email, success, remote_ip) VALUES (?, ?, ?)").bind(&payload.email).bind(is_valid).bind(&ip).execute(&state.pool).await;
+    let admin_opt = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_active, is_master, is_first_login, pref_show_inactive, pref_show_others, pref_sort_by, email FROM admins WHERE email = ?").bind(&payload.email).fetch_optional(&state.pool).await.map_err(|_| {(StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro no banco".to_string() }))})?;
+    let (is_valid, admin_id, is_first, pref_inactive, pref_others, pref_sort, is_master) = match &admin_opt { Some(a) => (a.is_active && verify(&payload.password, &a.password).unwrap_or(false), Some(a.id), a.is_first_login, a.pref_show_inactive, a.pref_show_others, a.pref_sort_by.clone(), a.is_master), None => (false, None, false, false, false, "updated_desc".to_string(), false) };
+    let _ = sqlx::query("INSERT INTO login_logs (email, success, remote_ip, severity) VALUES (?, ?, ?, 'INFO')").bind(&payload.email).bind(is_valid).bind(&ip).execute(&state.pool).await;
     if !is_valid { return Err((StatusCode::UNAUTHORIZED, Json(ErrorResponse { error: "Credenciais inválidas".to_string() }))); }
     let expiration = Utc::now().checked_add_signed(Duration::hours(24)).expect("Erro").timestamp() as usize;
     let claims = Claims { sub: admin_id.unwrap(), exp: expiration };
     let secret = env::var("JWT_SECRET").expect("JWT_SECRET não configurada");
     let token = encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_ref())).unwrap();
-    Ok(Json(LoginResponse { token, is_first_login: is_first, pref_show_inactive: pref_inactive, pref_show_others: pref_others, pref_sort_by: pref_sort }))
+    Ok(Json(LoginResponse { token, is_master, is_first_login: is_first, pref_show_inactive: pref_inactive, pref_show_others: pref_others, pref_sort_by: pref_sort }))
 }
 
 pub async fn change_password(
@@ -38,7 +38,7 @@ pub async fn change_password(
 ) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
     let hashed_pw = bcrypt::hash(payload.new_password, bcrypt::DEFAULT_COST).unwrap();
     sqlx::query("UPDATE admins SET password = ?, is_first_login = 0 WHERE id = ?").bind(hashed_pw).bind(claims.sub).execute(&state.pool).await.unwrap();
-    sqlx::query("INSERT INTO action_logs (admin_id, action) VALUES (?, ?)").bind(claims.sub).bind("Redefiniu a senha").execute(&state.pool).await.unwrap();
+    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', NULL)").bind(claims.sub).bind("Redefiniu a senha").execute(&state.pool).await.unwrap();
     Ok(Json("Senha updated!".to_string()))
 }
 
@@ -62,7 +62,7 @@ pub async fn get_dashboard(
     claims: Claims,
     State(state): State<AppState>,
 ) -> Result<Json<DashboardResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let admin = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_active, is_first_login, pref_show_inactive, pref_show_others, pref_sort_by FROM admins WHERE id = ?")
+    let admin = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_active, is_master, is_first_login, pref_show_inactive, pref_show_others, pref_sort_by, email FROM admins WHERE id = ?")
         .bind(claims.sub)
         .fetch_optional(&state.pool)
         .await
@@ -74,6 +74,7 @@ pub async fn get_dashboard(
     match admin {
         Some(a) => Ok(Json(DashboardResponse {
             admin_id: a.id,
+            is_master: a.is_master,
             pref_show_inactive: a.pref_show_inactive,
             pref_show_others: a.pref_show_others,
             pref_sort_by: a.pref_sort_by,
@@ -125,7 +126,7 @@ pub async fn create_animal(
     for (index, path) in photos.iter().enumerate() { sqlx::query("INSERT INTO animal_photos (animal_id, file_path, is_primary, is_active) VALUES (?, ?, ?, 1)").bind(animal_id).bind(path).bind(index == 0).execute(&mut *tx).await.unwrap(); }
     
     sqlx::query("INSERT INTO animal_tutors (animal_id, admin_id) VALUES (?, ?)").bind(animal_id).bind(claims.sub).execute(&mut *tx).await.unwrap();
-    sqlx::query("INSERT INTO action_logs (admin_id, action) VALUES (?, ?)").bind(claims.sub).bind(format!("Cadastrou o animal {}", name)).execute(&mut *tx).await.unwrap();
+    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', NULL)").bind(claims.sub).bind(format!("Cadastrou o animal {}", name)).execute(&mut *tx).await.unwrap();
     
     tx.commit().await.unwrap();
     Ok(Json("Animal cadastrado!".to_string()))
@@ -286,7 +287,7 @@ pub async fn update_animal(
             .bind(id).bind(&path).bind(is_prim).execute(&mut *tx).await.unwrap();
     }
 
-    sqlx::query("INSERT INTO action_logs (admin_id, action) VALUES (?, ?)").bind(claims.sub).bind(format!("Editou o animal ID: {}", id)).execute(&mut *tx).await.unwrap();
+    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', NULL)").bind(claims.sub).bind(format!("Editou o animal ID: {}", id)).execute(&mut *tx).await.unwrap();
     tx.commit().await.unwrap();
     Ok(Json("Animal atualizado!".to_string()))
 }
@@ -299,7 +300,7 @@ pub async fn update_animal_status(
 ) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
     sqlx::query("UPDATE animals SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(payload.is_active).bind(id).execute(&state.pool).await.unwrap();
     let action_str = if payload.is_active { "Restaurou" } else { "Inativou" };
-    sqlx::query("INSERT INTO action_logs (admin_id, action) VALUES (?, ?)").bind(claims.sub).bind(format!("{} o animal ID: {}", action_str, id)).execute(&state.pool).await.unwrap();
+    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', NULL)").bind(claims.sub).bind(format!("{} o animal ID: {}", action_str, id)).execute(&state.pool).await.unwrap();
     Ok(Json("Status alterado".to_string()))
 }
 
@@ -316,13 +317,13 @@ pub async fn toggle_tutorship(
         if count <= 1 { return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Você é o único responsável. Adicione outro tutor antes de sair.".to_string() }))); }
         sqlx::query("DELETE FROM animal_tutors WHERE animal_id = ? AND admin_id = ?").bind(id).bind(claims.sub).execute(&mut *tx).await.unwrap();
         sqlx::query("UPDATE animals SET updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(id).execute(&mut *tx).await.unwrap();
-        sqlx::query("INSERT INTO action_logs (admin_id, action) VALUES (?, ?)").bind(claims.sub).bind(format!("Removeu tutoria do animal ID: {}", id)).execute(&mut *tx).await.unwrap();
+        sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', NULL)").bind(claims.sub).bind(format!("Removeu tutoria do animal ID: {}", id)).execute(&mut *tx).await.unwrap();
         tx.commit().await.unwrap();
         Ok(Json("Tutoria removida".to_string()))
     } else {
         sqlx::query("INSERT INTO animal_tutors (animal_id, admin_id) VALUES (?, ?)").bind(id).bind(claims.sub).execute(&mut *tx).await.unwrap();
         sqlx::query("UPDATE animals SET updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(id).execute(&mut *tx).await.unwrap();
-        sqlx::query("INSERT INTO action_logs (admin_id, action) VALUES (?, ?)").bind(claims.sub).bind(format!("Assumiu tutoria do animal ID: {}", id)).execute(&mut *tx).await.unwrap();
+        sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', NULL)").bind(claims.sub).bind(format!("Assumiu tutoria do animal ID: {}", id)).execute(&mut *tx).await.unwrap();
         tx.commit().await.unwrap();
         Ok(Json("Tutoria assumida".to_string()))
     }

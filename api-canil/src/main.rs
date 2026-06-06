@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod admin_handlers;
 pub mod handlers;
 pub mod image_utils;
 pub mod models;
@@ -12,6 +13,7 @@ use std::{env, net::SocketAddr, str::FromStr};
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 
+use crate::admin_handlers::{create_admin, get_admins, get_system_logs, update_admin_status};
 use crate::handlers::{
     change_password, create_animal, get_animal, get_animals, get_dashboard, login_handler,
     toggle_tutorship, update_animal, update_animal_status, update_preferences,
@@ -46,7 +48,10 @@ async fn main() {
 
     let app = Router::new()
         .nest_service("/uploads", ServeDir::new("uploads"))
-        .route("/api/auth/login", post(login_handler))
+                .route("/api/auth/login", post(login_handler))
+        .route("/api/admins", get(get_admins).post(create_admin))
+        .route("/api/admins/:id/status", patch(update_admin_status))
+        .route("/api/logs", get(get_system_logs))
         .route("/api/auth/password", patch(change_password))
         .route("/api/auth/preferences", patch(update_preferences))
         .route("/api/dashboard", get(get_dashboard))
@@ -72,6 +77,7 @@ async fn init_db(pool: &sqlx::SqlitePool) {
             phone TEXT NOT NULL, 
             password TEXT NOT NULL, 
             is_active INTEGER NOT NULL DEFAULT 1,
+            is_master INTEGER NOT NULL DEFAULT 0,
             is_first_login INTEGER NOT NULL DEFAULT 1,
             pref_show_inactive INTEGER NOT NULL DEFAULT 0,
             pref_show_others INTEGER NOT NULL DEFAULT 0,
@@ -83,6 +89,7 @@ async fn init_db(pool: &sqlx::SqlitePool) {
             email TEXT NOT NULL,
             success INTEGER NOT NULL,
             remote_ip TEXT NOT NULL,
+            severity TEXT NOT NULL DEFAULT "INFO",
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -92,13 +99,16 @@ async fn init_db(pool: &sqlx::SqlitePool) {
             msg TEXT NOT NULL,
             remote_ip TEXT NOT NULL,
             endpoint TEXT NOT NULL,
-            user_agent TEXT NOT NULL
+            user_agent TEXT NOT NULL,
+            severity TEXT NOT NULL DEFAULT "CRITICAL"
         );
 
         CREATE TABLE IF NOT EXISTS action_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             admin_id INTEGER NOT NULL,
             action TEXT NOT NULL,
+            severity TEXT NOT NULL DEFAULT "INFO",
+            animal_id INTEGER,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(admin_id) REFERENCES admins(id) ON DELETE CASCADE
         );

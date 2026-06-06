@@ -10,6 +10,7 @@ pub struct LoginRequest {
 #[derive(Serialize)]
 pub struct LoginResponse {
     pub token: String,
+    pub is_master: bool,
     pub is_first_login: bool,
     pub pref_show_inactive: bool,
     pub pref_show_others: bool,
@@ -32,7 +33,9 @@ pub struct AdminRecord {
     pub id: i64,
     pub password: String,
     pub is_active: bool,
+    pub is_master: bool,
     pub is_first_login: bool,
+    pub email: String,
     pub pref_show_inactive: bool,
     pub pref_show_others: bool,
     pub pref_sort_by: String,
@@ -63,6 +66,7 @@ pub struct UpdatePreferencesRequest {
 #[derive(Serialize)]
 pub struct DashboardResponse {
     pub admin_id: i64,
+    pub is_master: bool,
     pub pref_show_inactive: bool,
     pub pref_show_others: bool,
     pub pref_sort_by: String,
@@ -125,4 +129,49 @@ pub struct AnimalRow {
     pub coat_length: String,
     pub description: String,
     pub is_active: bool,
+}
+
+#[derive(Serialize)]
+pub struct AdminListItem {
+    pub id: i64,
+    pub name: String,
+    pub email: String,
+    pub phone: String,
+    pub is_active: bool,
+    pub is_master: bool,
+}
+
+#[derive(Deserialize)]
+pub struct CreateAdminRequest {
+    pub name: String,
+    pub email: String,
+    pub phone: String,
+    pub is_master: bool,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateAdminStatusRequest {
+    pub is_active: Option<bool>,
+    pub is_master: Option<bool>,
+    pub force_password_reset: Option<bool>,
+}
+
+#[derive(Serialize)]
+pub struct SystemLog {
+    pub id: i64,
+    pub log_type: String,
+    pub severity: String,
+    pub description: String,
+    pub admin_id: Option<i64>,
+    pub animal_id: Option<i64>,
+    pub remote_ip: String,
+    pub timestamp: String,
+}
+
+#[derive(Deserialize)]
+pub struct LogFilters {
+    pub admin_id: Option<i64>,
+    pub severity: Option<String>,
+    pub animal_id: Option<i64>,
+    pub log_type: Option<String>,
 }

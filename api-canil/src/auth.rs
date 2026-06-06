@@ -79,7 +79,7 @@ where
                 let _ = sqlx::query(
                     r#"
                     INSERT INTO security_warnings 
-                    (msg, remote_ip, endpoint, user_agent) 
+                    (msg, remote_ip, endpoint, user_agent, severity) 
                     VALUES (?, ?, ?, ?)
                     "#
                 )
@@ -87,6 +87,7 @@ where
                 .bind(&ip)
                 .bind(&endpoint)
                 .bind(&user_agent)
+                .bind("CRITICAL")
                 .execute(&app_state.pool)
                 .await;
 

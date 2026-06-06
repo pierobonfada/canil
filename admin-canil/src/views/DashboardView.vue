@@ -2,7 +2,11 @@
   <div class="dashboard-container">
     <header class="top-bar">
       <h2>🐾 Painel do Canil</h2>
-      <button @click="handleLogout" class="btn-logout">Sair do Sistema</button>
+      <div class="header-actions">
+        <button v-if="isMaster" @click="router.push('/admins')" class="btn-master">👑 Admins</button>
+        <button v-if="isMaster" @click="router.push('/logs')" class="btn-master">📊 Logs</button>
+        <button @click="handleLogout" class="btn-logout">Sair</button>
+      </div>
     </header>
 
     <main class="content">
@@ -106,6 +110,7 @@ import api from '../services/api'
 const router = useRouter()
 const animals = ref<any[]>([])
 const isLoading = ref(true)
+const isMaster = ref(localStorage.getItem('isMaster') === '1')
 
 const searchQuery = ref('')
 const showInactive = ref(false)
