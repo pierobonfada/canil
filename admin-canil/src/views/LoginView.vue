@@ -1,3 +1,8 @@
+<!-- ========================================== -->
+<!-- 🚪 A PORTA DE ENTRADA: Tela de Login -->
+<!-- ========================================== -->
+<!-- Não tem muito segredo: o cara digita o email e a senha, a gente
+fala com a API e se tiver tudo certo, abrimos a porta pro Dashboard! -->
 <template>
   <div class="login-container">
     <div class="login-box">

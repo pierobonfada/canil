@@ -5,12 +5,21 @@ use axum::{
 };
 use serde_json::Value;
 use std::net::SocketAddr;
+use uuid::Uuid;
 
 use crate::models::{
     AppState, ErrorResponse, AnalyticsEventRequest, AnalyticsDashboardResponse,
     AnalyticsSessionResponse, AnalyticsEventDetail, TopAnimalStats, StatCount, SessionFilters
 };
 
+// ==========================================
+// 🕵️ CENTRAL DE ESPIÕES (ANALYTICS)
+// ==========================================
+// Aqui a gente descobre o que os usuários andam fazendo no site público!
+// Cada vez que alguém clica num cachorro, procura uma cor específica ou acessa a home,
+// o site nos avisa aqui. Depois usamos isso pra gerar aqueles gráficos bonitões pro painel!
+
+// 📡 O RADAR: Registra cada passo do visitante
 pub async fn register_event(
     State(state): State<AppState>,
     headers: HeaderMap,

@@ -1,4 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
+
+// ==========================================
+// 🗺️ O MAPA DO PAINEL (ROUTER) E O SEGURANÇA DA PORTA
+// ==========================================
+// Aqui a gente define todas as telas que existem no painel de controle.
+// Mas não é só isso! Temos um "segurança" (o `router.beforeEach`) que
+// barrar intrusos que tentam acessar a URL do Dashboard sem estarem logados.
+
 import LoginView from '../views/LoginView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import ChangePasswordView from '../views/ChangePasswordView.vue'

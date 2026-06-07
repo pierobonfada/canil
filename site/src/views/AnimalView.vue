@@ -1,3 +1,9 @@
+<!-- ========================================== -->
+<!-- 🐾 PERFIL DO ANIMAL (A Página do "Match") -->
+<!-- ========================================== -->
+<!-- Quando o visitante clica num cachorro ou gato, é pra cá que ele vem!
+Aqui mostramos o carrossel de fotos, a ficha médica completa, e o grande 
+botão verde do WhatsApp pra ele entrar em contato com os tutores! -->
 <template>
   <div class="animal-view">
     <div v-if="isLoading" class="loading-state">

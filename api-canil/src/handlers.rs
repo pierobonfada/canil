@@ -13,7 +13,17 @@ use crate::models::{
     Claims, ErrorResponse, LoginRequest, LoginResponse, StatusPayload, PhotoInfo, 
     UpdatePreferencesRequest, DashboardResponse, PublicAnimalFilters, PublicTutorContact, PublicAnimalDetail
 };
+// ==========================================
+// 🎢 MONTANHA RUSSA DE HANDLERS (O CORAÇÃO DO BACKEND)
+// ==========================================
+// Cada função aqui é um "Handler". O que eles fazem? Eles ficam esperando
+// o front-end mandar requisições (como "ei, me dá a lista de animais!").
+// Eles processam os dados, conversam com o banco de dados e devolvem a resposta!
 
+// 🚪 O GUARDÃO DA PORTA: Handler de Login
+// Aqui verificamos o e-mail e senha. Se bater tudo certinho, devolvemos 
+// um Token JWT (que é tipo uma pulseirinha VIP) para o usuário navegar pelo painel!
+// Tem até sistema de travamento para chutar hackers pra longe (força bruta).
 pub async fn login_handler(
     State(state): State<AppState>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
@@ -115,7 +125,9 @@ pub async fn update_preferences(
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro ao salvar preferências".to_string(), remaining_attempts: None })))?;
     Ok(Json("Preferências salvas".to_string()))
 }
-
+// 📊 O PAINEL DE CONTROLE: Puxa o resumo do Admin
+// Aqui o sistema vê se a "pulseirinha VIP" (token) é válida e devolve as 
+// configurações do usuário para montar o painel bonitão dele.
 pub async fn get_dashboard(
     claims: Claims,
     State(state): State<AppState>,
@@ -140,7 +152,9 @@ pub async fn get_dashboard(
         None => Err((StatusCode::UNAUTHORIZED, Json(ErrorResponse { error: "Usuário inválido".to_string(), remaining_attempts: None })))
     }
 }
-
+// 🐶 NASCIMENTO DE UM NOVO PERFIL: Cadastro de Animais
+// Pega todas as infos (nome, raça, porte) e as fotos gigantes via Multipart.
+// Manda as fotos pro `image_utils` emagrecerem, e salva os dados no SQLite.
 pub async fn create_animal(
     claims: Claims,
     State(state): State<AppState>,
@@ -194,7 +208,9 @@ pub async fn create_animal(
     tx.commit().await.unwrap();
     Ok(Json("Animal cadastrado!".to_string()))
 }
-
+// 📋 LISTA DE CHAMADA: Buscando os animais para o Painel Admin
+// Monta aquela lista bacana pro administrador ver quem está ativo,
+// quem são os tutores e devolve tudo empacotadinho.
 pub async fn get_animals(
     claims: Claims,
     State(state): State<AppState>,
@@ -404,7 +420,10 @@ pub async fn toggle_tutorship(
         Ok(Json("Tutoria assumida".to_string()))
     }
 }
-
+// 🌍 O PALCO PRINCIPAL: Vitrine Pública de Animais
+// Essa é a rota mais importante do site! É aqui que os visitantes veem os pets.
+// Ela já recebe os filtros (cor, idade, etc) e monta o SQL perfeito para 
+// trazer só os doguinhos ou gatinhos que o usuário procura.
 pub async fn get_public_animals(
     Query(filters): Query<PublicAnimalFilters>,
     State(state): State<AppState>,

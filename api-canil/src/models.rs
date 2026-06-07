@@ -1,15 +1,25 @@
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 
+// ==========================================
+// 📦 MODELOS DE DADOS E ESTRUTURAS (STRUCTS)
+// ==========================================
+// Pense neste arquivo como a "fábrica de forminhas". Cada Struct dita 
+// exatamente o formato que os dados devem ter quando entram e saem do sistema!
+
+// 🔐 Como o administrador vai bater na porta (login)
+
+
 #[derive(Deserialize)]
 pub struct LoginRequest {
     pub email: String,
     pub password: String,
 }
 
+// 🎟️ O que entregamos pro administrador caso a senha esteja correta
 #[derive(Serialize)]
 pub struct LoginResponse {
-    pub token: String,
+    pub token: String, // O crachá digital!
     pub is_master: bool,
     pub is_first_login: bool,
     pub pref_show_inactive: bool,
@@ -17,18 +27,21 @@ pub struct LoginResponse {
     pub pref_sort_by: String,
 }
 
+// ⚠️ E se algo der errado? Retornamos essa caixinha de erro amigável.
 #[derive(Serialize)]
 pub struct ErrorResponse {
     pub error: String,
     pub remaining_attempts: Option<i32>,
 }
 
+// 📜 O que fica escrito "dentro" do nosso crachá JWT
 #[derive(Serialize, Deserialize)]
 pub struct Claims {
     pub sub: i64,
     pub exp: usize,
 }
 
+// 🧑‍💼 Representação fiel de um administrador salvo lá no banco SQLite
 #[derive(sqlx::FromRow)]
 pub struct AdminRecord {
     pub id: i64,
@@ -44,10 +57,16 @@ pub struct AdminRecord {
     pub is_locked: bool,
 }
 
+// 🌍 Estado Global: é assim que nossos Handlers conseguem conversar com o banco
 #[derive(Clone)]
 pub struct AppState {
     pub pool: SqlitePool,
 }
+
+// ==========================================
+// 🐶 MODELOS DO PAINEL (CRUD DE ANIMAIS)
+// ==========================================
+
 
 #[derive(Deserialize)]
 pub struct StatusPayload {

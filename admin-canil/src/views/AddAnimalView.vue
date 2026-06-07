@@ -1,3 +1,9 @@
+<!-- ========================================== -->
+<!-- 🐶 NOVO INTEGRANTE: Cadastrar Animal -->
+<!-- ========================================== -->
+<!-- Chegou um novo morador no canil? É aqui que o administrador
+preenche o nome, idade, comportamento, faz o upload da foto e joga
+o novo pet direto para o estrelato da Home pública! -->
 <template>
   <div class="add-animal-container">
     <header class="top-bar">

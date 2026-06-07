@@ -1,3 +1,8 @@
+<!-- ========================================== -->
+<!-- 🏡 A VITRINE PRINCIPAL (App.vue do Site) -->
+<!-- ========================================== -->
+<!-- O <RouterView /> vai renderizar a Home, a página de Contato ou o Perfil do Animal
+dependendo do que o visitante clicar! -->
 <template>
   <div class="app-layout">
     <router-view></router-view>

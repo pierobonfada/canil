@@ -1,3 +1,9 @@
+<!-- ========================================== -->
+<!-- 🏡 TELA PRINCIPAL: A Vitrine de Adoções -->
+<!-- ========================================== -->
+<!-- Bem-vindo à Home! É aqui que a mágica acontece. O visitante vê 
+um banner chamativo, brinca com os filtros de busca e vai rolando
+a página para ver todos os focinhos até encontrar o amor da sua vida! -->
 <template>
   <div class="home-view">
     <header class="hero">
@@ -156,16 +162,24 @@
 </template>
 
 <script setup lang="ts">
+// ==========================================
+// 🧠 O CÉREBRO DA HOME: A Lógica de Pesquisa e Rolagem Infinita
+// ==========================================
+// Aqui a gente guarda as escolhas dos filtros, vai lá no servidor buscar os animais
+// e faz a "rolagem infinita" (carregar mais cards quando a tela chega no final).
+
 import { ref, reactive, onMounted, onUnmounted } from 'vue';
 import api from '../services/api';
 
-const animals = ref<any[]>([]);
-const isLoading = ref(false);
-const hasMore = ref(true);
-const page = ref(1);
-const limit = 12;
-const loadMoreTrigger = ref<HTMLElement | null>(null);
+// 📦 Nossas variáveis (estados) que vão mudar na tela
+const animals = ref<any[]>([]); // A lista de animais aparecendo
+const isLoading = ref(false);   // Está carregando agora? (pra mostrar as patinhas rodando)
+const hasMore = ref(true);      // Tem mais bicho no banco de dados?
+const page = ref(1);            // Em qual "página" invisível estamos?
+const limit = 12;               // Quantos animais por vez a gente puxa do servidor
+const loadMoreTrigger = ref<HTMLElement | null>(null); // O pontinho no final da tela pra ativar a rolagem
 
+// 🔍 A caixinha de filtros que o usuário preenche
 const filters = reactive({
   name: '',
   species: '',
@@ -177,6 +191,7 @@ const filters = reactive({
   age_category: ''
 });
 
+// 📸 Acha a foto principal do pet (ou põe um fundo cinza se ele for tímido e não tiver foto)
 const getPrimaryPhoto = (animal: any) => {
   if (!animal.photos || animal.photos.length === 0) return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="%23cccccc"/><text x="50%" y="50%" fill="%23000000" text-anchor="middle" dy=".3em">Sem Foto</text></svg>';
   const primary = animal.photos.find((p: any) => p.is_primary);
@@ -185,6 +200,7 @@ const getPrimaryPhoto = (animal: any) => {
   return `${baseUrl}/${path.startsWith('uploads') ? path : 'uploads/' + path}`;
 };
 
+// 🎂 Calcula a idade com base no ano de nascimento
 const calculateAge = (birthYear: number) => {
   const currentYear = new Date().getFullYear();
   const age = currentYear - birthYear;
@@ -193,15 +209,19 @@ const calculateAge = (birthYear: number) => {
   return `${age} anos`;
 };
 
+// 👶 É bebê? Pra mostrar aquela tag "Bebê" bonitinha no card
 const isPuppyOrKitten = (birthYear: number) => {
   return (new Date().getFullYear() - birthYear) <= 1;
 };
 
+// ✂️ Corta textos que são muito gigantes (pra descrição não explodir o tamanho do card)
 const truncate = (text: string, length: number) => {
   if (!text) return '';
   return text.length > length ? text.substring(0, length) + '...' : text;
 };
 
+// 🚀 O BUSCADOR DE ANIMAIS (Nossa função mais importante!)
+// Vai lá na API com a prancheta de filtros e traz quem combina com o usuário.
 const fetchAnimals = async () => {
   if (isLoading.value || !hasMore.value) return;
   isLoading.value = true;

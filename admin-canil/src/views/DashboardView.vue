@@ -1,3 +1,9 @@
+<!-- ========================================== -->
+<!-- 📊 DASHBOARD: A Sala de Comando -->
+<!-- ========================================== -->
+<!-- Aqui é o Quartel General dos administradores. Eles podem ver a lista
+de todos os animais, quem é o tutor de quem, inativar perfis e até ver
+algumas métricas (se forem Master). -->
 <template>
   <div class="dashboard-container">
     <header class="top-bar">
