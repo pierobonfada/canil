@@ -29,7 +29,7 @@ use crate::analytics_handlers::{
     register_event, get_dashboard_stats, get_sessions, get_session_details
 };
 
-#[tokio::main]
+#[tokio::main(worker_threads = 4)]
 // FUNÇÃO PRINCIPAL
 // A macro #[tokio::main] transforma a função main tradicional (síncrona) 
 // em uma função assíncrona executada por um runtime (o Tokio). Isso é essencial
@@ -188,6 +188,7 @@ async fn init_db(pool: &sqlx::SqlitePool) {
             independence TEXT,
             size TEXT,
             coat_color TEXT,
+            predominant_color TEXT,
             coat_length TEXT,
             description TEXT,
             is_active INTEGER DEFAULT 1,
