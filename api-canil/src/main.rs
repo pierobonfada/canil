@@ -245,9 +245,6 @@ async fn init_db(pool: &sqlx::SqlitePool) {
 
     // Roda a "planta do engenheiro" no banco de dados SQLite
     sqlx::query(schema).execute(pool).await.expect("Falha ao criar estrutura do banco");
-    
-    // Migration: add remote_ip se não existir na action_logs já criada
-    let _ = sqlx::query("ALTER TABLE action_logs ADD COLUMN remote_ip TEXT NOT NULL DEFAULT '0.0.0.0'").execute(pool).await;
 
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM admins").fetch_one(pool).await.unwrap_or(0);
     if count == 0 {
