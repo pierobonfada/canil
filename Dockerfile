@@ -21,7 +21,7 @@ RUN npm run build
 # ==========================================
 # STAGE 3: Build do Backend (Rust)
 # ==========================================
-FROM rust:1.75-bookworm AS builder-rust
+FROM rust:1-bookworm AS builder-rust
 WORKDIR /app
 COPY api-canil/ ./api-canil
 WORKDIR /app/api-canil
