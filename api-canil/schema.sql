@@ -57,6 +57,7 @@
             independence TEXT,
             size TEXT,
             coat_color TEXT,
+            predominant_color TEXT,
             coat_length TEXT,
             description TEXT,
             is_active INTEGER DEFAULT 1,
