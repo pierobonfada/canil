@@ -29,12 +29,22 @@ use crate::analytics_handlers::{
     register_event, get_dashboard_stats, get_sessions, get_session_details
 };
 
-#[tokio::main(worker_threads = 4)]
 // FUNÇÃO PRINCIPAL
-// A macro #[tokio::main] transforma a função main tradicional (síncrona) 
-// em uma função assíncrona executada por um runtime (o Tokio). Isso é essencial
-// no Rust para lidar com múltiplas requisições HTTP de forma concorrente sem bloquear a thread.
-async fn main() {
+// Iniciamos o Tokio manualmente para garantir no mínimo 4 threads (para evitar
+// Health Check Timeouts no Render Free Tier) ou mais, dependendo do número de CPUs.
+fn main() {
+    let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1);
+    let threads = std::cmp::max(4, cores);
+
+    tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(threads)
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async_main())
+}
+
+async fn async_main() {
     // Carrega variáveis do arquivo .env para o ambiente local.
     dotenvy::dotenv().ok();
 
