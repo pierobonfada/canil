@@ -14,7 +14,6 @@ pub fn process_and_save_image(bytes: Bytes) -> Result<String, String> {
     let mut file = std::fs::File::create(&filepath)
         .map_err(|e| format!("Falha ao criar arquivo: {}", e))?;
     
-    // Agora passamos o arquivo diretamente, pois std::fs::File já implementa Write e Seek
     resized
         .write_to(&mut file, ImageFormat::Jpeg)
         .map_err(|e| format!("Falha ao salvar JPEG: {}", e))?;

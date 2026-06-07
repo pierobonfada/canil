@@ -138,7 +138,6 @@
       </div>
     </main>
 
-    <!-- Modal de Sessão Detalhada -->
     <div class="modal-overlay" v-if="selectedSessionId" @click.self="selectedSessionId = null">
       <div class="modal-content">
         <header>
@@ -266,7 +265,7 @@ watch(activeTab, (newTab) => {
 const setupObserver = () => {
   if (observer) observer.disconnect();
   observer = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting && hasMoreSessions.value && !isLoading.value) {
+    if (entries[0]?.isIntersecting && hasMoreSessions.value && !isLoading.value) {
       fetchSessions();
     }
   });

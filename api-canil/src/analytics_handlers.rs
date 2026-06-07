@@ -23,14 +23,36 @@ pub async fn register_event(
         .unwrap_or("Unknown")
         .to_string();
 
-    // Use X-Forwarded-For if available, else socket addr
     let ip = headers
         .get("x-forwarded-for")
         .map(|v| v.to_str().unwrap_or("").to_string())
         .unwrap_or_else(|| addr.ip().to_string());
 
+    if payload.path.len() > 255 {
+        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse {
+            error: "Caminho muito longo".to_string(),
+            remaining_attempts: None,
+        })));
+    }
+
+    if payload.event_type.len() > 50 {
+        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse {
+            error: "Tipo de evento inválido".to_string(),
+            remaining_attempts: None,
+        })));
+    }
+
     let payload_str = match payload.payload {
-        Some(p) => Some(serde_json::to_string(&p).unwrap_or_default()),
+        Some(p) => {
+            let s = serde_json::to_string(&p).unwrap_or_default();
+            if s.len() > 1000 {
+                return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse {
+                    error: "Payload muito grande".to_string(),
+                    remaining_attempts: None,
+                })));
+            }
+            Some(s)
+        },
         None => None,
     };
 
@@ -94,8 +116,6 @@ pub async fn get_dashboard_stats(
         "#
     ).fetch_all(pool).await.unwrap_or_default();
 
-    // To parse payload we can extract specific properties if we use JSON functions in SQLite 3.38+
-    // But since sqlite json path might be tricky, we'll extract the raw payloads and count in Rust.
     let searches: Vec<String> = sqlx::query_scalar(
         "SELECT payload FROM site_analytics WHERE event_type = 'search' AND payload IS NOT NULL"
     ).fetch_all(pool).await.unwrap_or_default();
@@ -122,7 +142,7 @@ pub async fn get_dashboard_stats(
         }
     }
 
-    let to_stat_vec = |mut map: std::collections::HashMap<String, i64>| -> Vec<StatCount> {
+    let to_stat_vec = |map: std::collections::HashMap<String, i64>| -> Vec<StatCount> {
         let mut v: Vec<StatCount> = map.into_iter().map(|(k, c)| StatCount { name: k, count: c }).collect();
         v.sort_by(|a, b| b.count.cmp(&a.count));
         v.truncate(5);
@@ -174,7 +194,6 @@ pub async fn get_sessions(
 
     let mut has_where = false;
     
-    // Filter by animals
     if let Some(animals_str) = &filters.animals {
         if !animals_str.trim().is_empty() {
             let names: Vec<&str> = animals_str.split_whitespace().collect();
@@ -191,7 +210,6 @@ pub async fn get_sessions(
         }
     }
 
-    // Filter by date
     if let Some(date_str) = &filters.date {
         if !date_str.trim().is_empty() {
             if !has_where { q.push(" WHERE "); has_where = true; } else { q.push(" AND "); }
@@ -200,10 +218,9 @@ pub async fn get_sessions(
         }
     }
 
-    // Filter by IP
     if let Some(ip_str) = &filters.ip {
         if !ip_str.trim().is_empty() {
-            if !has_where { q.push(" WHERE "); has_where = true; } else { q.push(" AND "); }
+            if !has_where { q.push(" WHERE "); } else { q.push(" AND "); }
             q.push(" s.ip_address LIKE ");
             q.push_bind(format!("%{}%", ip_str));
         }
@@ -255,7 +272,6 @@ pub async fn get_session_details(
         ));
     }
 
-    // get generic ip / ua
     let meta: (String, String) = sqlx::query_as("SELECT ip_address, user_agent FROM site_analytics WHERE visitor_id = ? LIMIT 1")
         .bind(&visitor_id).fetch_one(pool).await.unwrap_or(("".into(), "".into()));
 

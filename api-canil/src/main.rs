@@ -6,7 +6,7 @@ pub mod image_utils;
 pub mod models;
 
 use axum::{
-    routing::{get, patch, post, put, delete},
+    routing::{get, patch, post, put},
     Router,
 };
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};

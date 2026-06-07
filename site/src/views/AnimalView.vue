@@ -13,7 +13,6 @@
     </div>
 
     <template v-else-if="animal">
-      <!-- Top Navigation -->
       <nav class="top-nav">
         <button class="btn-back" @click="$router.push('/')">
           <span class="arrow">←</span> Voltar
@@ -21,7 +20,6 @@
       </nav>
 
       <main class="animal-details-container">
-        <!-- Photo Gallery Section -->
         <div class="gallery-section">
           <div class="main-photo glass-panel">
             <img :src="getPhotoUrl(currentPhoto)" :alt="animal.name" />
@@ -39,7 +37,6 @@
           </div>
         </div>
 
-        <!-- Info Section -->
         <div class="info-section">
           <div class="header-info glass-panel">
             <div class="title-row">
@@ -68,13 +65,11 @@
             </div>
           </div>
 
-          <!-- Description -->
           <div class="description-card glass-panel">
             <h2>Sobre Mim</h2>
             <p>{{ animal.description }}</p>
           </div>
 
-          <!-- Personality & Health -->
           <div class="details-grid">
             <div class="detail-card glass-panel">
               <h3>Comportamento</h3>
@@ -98,7 +93,6 @@
             </div>
           </div>
 
-          <!-- Contact Section -->
           <div class="contact-section glass-panel">
             <h2>❤️ Quero Adotar!</h2>
             <p v-if="tutors.length > 0">Que incrível! Fale diretamente com o tutor(a) responsável por {{ animal.name }}:</p>
@@ -146,7 +140,6 @@ const fetchAnimal = async () => {
     animal.value = res.data.animal;
     tutors.value = res.data.tutors;
     
-    // Set initial photo
     if (animal.value.photos && animal.value.photos.length > 0) {
       const primary = animal.value.photos.find((p: any) => p.is_primary);
       currentPhoto.value = primary ? primary.file_path : animal.value.photos[0].file_path;
@@ -163,7 +156,7 @@ const fetchAnimal = async () => {
 };
 
 const getPhotoUrl = (path: string) => {
-  if (!path) return 'https://via.placeholder.com/400x400?text=Sem+Foto';
+  if (!path) return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="%23cccccc"/><text x="50%" y="50%" fill="%23000000" text-anchor="middle" dy=".3em">Sem Foto</text></svg>';
   const baseUrl = (import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000/api`).replace('/api', '');
   return `${baseUrl}/${path.startsWith('uploads') ? path : 'uploads/' + path}`;
 };
@@ -255,7 +248,6 @@ onMounted(() => {
   align-items: start;
 }
 
-/* Gallery */
 .main-photo {
   border-radius: 24px;
   overflow: hidden;
@@ -298,7 +290,6 @@ onMounted(() => {
   transform: scale(1.05);
 }
 
-/* Info */
 .info-section {
   display: flex;
   flex-direction: column;
@@ -395,7 +386,6 @@ onMounted(() => {
   font-size: 1rem;
 }
 
-/* Contact */
 .contact-section {
   padding: 2rem;
   background: linear-gradient(135deg, rgba(79,70,229,0.1) 0%, rgba(6,182,212,0.1) 100%);
@@ -472,7 +462,6 @@ onMounted(() => {
   transform: translateY(-2px);
 }
 
-/* Loading & Error States */
 .loading-state, .error-state {
   height: 60vh;
   display: flex;
@@ -508,7 +497,6 @@ onMounted(() => {
   margin-top: 1.5rem;
 }
 
-/* Responsive */
 @media (max-width: 900px) {
   .animal-details-container {
     grid-template-columns: 1fr;

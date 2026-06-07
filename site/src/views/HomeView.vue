@@ -1,6 +1,5 @@
 <template>
   <div class="home-view">
-    <!-- Hero Section -->
     <header class="hero">
       <div class="hero-content">
         <div class="paw-icon">🐾</div>
@@ -21,7 +20,6 @@
       </div>
     </header>
 
-    <!-- Filters Section -->
     <section class="filters-section glass-panel" id="filters">
       <h2 class="section-title">🔍 Como é o amigo que você procura?</h2>
       <div class="filters-grid">
@@ -104,7 +102,6 @@
       </div>
     </section>
 
-    <!-- Animals Grid -->
     <main class="animals-container">
       <div v-if="animals.length === 0 && !isLoading" class="empty-state">
         <div class="empty-icon">😿</div>
@@ -142,7 +139,6 @@
         </div>
       </div>
 
-      <!-- Infinite Scroll Trigger -->
       <div ref="loadMoreTrigger" class="loading-trigger">
         <div v-if="isLoading" class="loader">
           <div class="paw-loader">🐾</div>
@@ -182,7 +178,7 @@ const filters = reactive({
 });
 
 const getPrimaryPhoto = (animal: any) => {
-  if (!animal.photos || animal.photos.length === 0) return 'https://via.placeholder.com/400x400?text=Sem+Foto';
+  if (!animal.photos || animal.photos.length === 0) return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="%23cccccc"/><text x="50%" y="50%" fill="%23000000" text-anchor="middle" dy=".3em">Sem Foto</text></svg>';
   const primary = animal.photos.find((p: any) => p.is_primary);
   const path = primary ? primary.file_path : animal.photos[0].file_path;
   const baseUrl = (import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000/api`).replace('/api', '');
@@ -217,7 +213,6 @@ const fetchAnimals = async () => {
       ...filters
     };
     
-    // Map age_category to min/max age
     if (params.age_category) {
       if (params.age_category === 'Filhote') {
         params.age_min = 0; params.age_max = 1;
@@ -230,12 +225,10 @@ const fetchAnimals = async () => {
       }
     }
 
-    // Remove empty filters
     Object.keys(params).forEach(key => {
       if (params[key] === '') delete params[key];
     });
 
-    // Track search event if there are active filters (excluding page and limit)
     if (Object.keys(params).length > 2 && page.value === 1) {
       let visitorId = localStorage.getItem('visitor_id');
       if (visitorId) {
@@ -302,7 +295,6 @@ const scrollToAnimals = () => {
   document.querySelector('.animals-container')?.scrollIntoView({ behavior: 'smooth' });
 };
 
-// Intersection Observer for Infinite Scroll
 let observer: IntersectionObserver;
 
 onMounted(() => {
@@ -316,7 +308,6 @@ onMounted(() => {
     observer.observe(loadMoreTrigger.value);
   }
   
-  // Initial fetch
   fetchAnimals();
 });
 
@@ -332,7 +323,6 @@ onUnmounted(() => {
   min-height: 100vh;
 }
 
-/* Hero Section */
 .hero {
   position: relative;
   min-height: 70vh;
@@ -429,7 +419,6 @@ onUnmounted(() => {
   color: white;
 }
 
-/* Background Shapes */
 .hero-bg-shapes {
   position: absolute;
   top: 0; left: 0; width: 100%; height: 100%;
@@ -456,7 +445,6 @@ onUnmounted(() => {
   bottom: -200px; right: -100px;
 }
 
-/* Filters */
 .filters-section {
   max-width: 1200px;
   margin: -50px auto 3rem;
@@ -520,7 +508,6 @@ onUnmounted(() => {
   transition: all 0.2s;
 }
 
-/* Animals Grid */
 .animals-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -644,7 +631,6 @@ onUnmounted(() => {
   opacity: 0.8;
 }
 
-/* Empty State */
 .empty-state {
   text-align: center;
   padding: 4rem 2rem;
@@ -683,7 +669,6 @@ onUnmounted(() => {
   color: white;
 }
 
-/* Loading */
 .loading-trigger {
   padding: 3rem 0;
   text-align: center;

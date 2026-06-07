@@ -239,7 +239,6 @@ const togglePhoto = (index: number) => {
   const photo = form.value.photos[index];
   if (!photo) return;
   photo.is_active = !photo.is_active;
-  // Se inativarmos a foto que é capa, remove a seleção dela temporariamente
   if (!photo.is_active && form.value.primary_photo === photo.file_path) {
     form.value.primary_photo = '';
   }

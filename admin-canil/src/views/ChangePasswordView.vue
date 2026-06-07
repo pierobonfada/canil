@@ -67,14 +67,12 @@ const handleChangePassword = async () => {
   errorMessage.value = ''
   
   try {
-    // Chama a rota PATCH que criamos no Rust
     await api.patch('/auth/password', {
       new_password: newPassword.value
     })
     
     successMessage.value = 'Senha atualizada com sucesso! Redirecionando...'
     
-    // Aguarda um instante para o usuário ler a mensagem e joga pro dashboard
     setTimeout(() => {
       router.push('/dashboard')
     }, 1500)
@@ -109,7 +107,7 @@ const handleChangePassword = async () => {
   width: 100%;
   max-width: 450px;
   text-align: center;
-  border-top: 4px solid #eab308; /* Borda amarela indicando atenção */
+  border-top: 4px solid #eab308;
 }
 
 h2 { margin: 0 0 0.5rem 0; color: #1f2937; }

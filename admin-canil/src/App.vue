@@ -7,10 +7,15 @@ import { RouterView } from 'vue-router'
 </script>
 
 <style>
-/* Estilos globais básicos para resetar margens */
 body {
   margin: 0;
   padding: 0;
   background-color: #f8fafc;
+}
+
+* {
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 </style>

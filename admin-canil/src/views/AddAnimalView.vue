@@ -197,7 +197,7 @@ const submitForm = async () => {
   try {
     await api.post('/animais', formData)
     alert('Cadastrado com sucesso!')
-    router.push('/dashboard') // Redireciona corretamente para o Dashboard
+    router.push('/dashboard')
   } catch (e: any) {
     alert('Erro: ' + (e.response?.data?.error || 'Falha no envio'))
   } finally {

@@ -285,7 +285,7 @@ pub async fn update_animal(
     let mut diseases: Vec<String> = Vec::new();
     let mut active_photos: Vec<String> = Vec::new();
     let mut inactive_photos: Vec<String> = Vec::new();
-    let mut primary_photo = String::new(); // Captura a capa
+    let mut primary_photo = String::new();
 
     while let Ok(Some(field)) = multipart.next_field().await {
         let field_name = field.name().unwrap_or("").to_string();
@@ -419,14 +419,13 @@ pub async fn get_public_animals(
     if let Some(bh) = &filters.behavior_cats { if !bh.is_empty() { q.push(" AND behavior_cats = "); q.push_bind(bh); } }
     if let Some(bhum) = &filters.behavior_humans { if !bhum.is_empty() { q.push(" AND behavior_humans = "); q.push_bind(bhum); } }
     
-    // year logic for age
     if filters.age_min.is_some() || filters.age_max.is_some() {
         let current_year = chrono::Utc::now().naive_utc().date().format("%Y").to_string().parse::<i64>().unwrap_or(2026);
         if let Some(min) = filters.age_min { q.push(" AND birth_year <= "); q.push_bind(current_year - min); }
         if let Some(max) = filters.age_max { q.push(" AND birth_year >= "); q.push_bind(current_year - max); }
     }
 
-    q.push(" ORDER BY (id * 97) % 100 DESC, updated_at DESC"); // Pseudo-random determinista diversificado
+    q.push(" ORDER BY (id * 97) % 100 DESC, updated_at DESC");
 
     if let Some(limit) = filters.limit {
         q.push(" LIMIT "); q.push_bind(limit);
@@ -434,7 +433,7 @@ pub async fn get_public_animals(
             q.push(" OFFSET "); q.push_bind((page - 1) * limit);
         }
     } else {
-        q.push(" LIMIT 10 OFFSET 0"); // default pagination
+        q.push(" LIMIT 10 OFFSET 0");
     }
 
     let rows: Vec<AnimalRow> = q.build_query_as().fetch_all(&state.pool).await.unwrap_or_default();

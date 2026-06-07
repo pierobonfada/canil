@@ -126,12 +126,10 @@ const getPhotoUrl = (photo: string) => {
   return `${baseUrl}/${cleanPhoto}`;
 }
 
-// Retorna apenas fotos ativas para a pilha
 const getActivePhotos = (animal: any) => {
   return animal.photos ? animal.photos.filter((p: any) => p.is_active) : []
 }
 
-// Avança a pilha colocando a primeira foto no fim
 const cyclePhoto = (animal: any) => {
   const active = getActivePhotos(animal);
   if (active.length <= 1) return;
@@ -142,7 +140,6 @@ const cyclePhoto = (animal: any) => {
   animal.photoOffset = (animal.photoOffset + 1) % active.length;
 }
 
-// Entrega as fotos deslocadas com base nos cliques
 const getStackedPhotos = (animal: any) => {
   const active = getActivePhotos(animal);
   if (active.length === 0) return [];
@@ -202,10 +199,8 @@ const filteredAnimals = computed(() => {
     const scoreA = (a.is_my_tutorship ? 2 : 0) + (a.is_active ? 1 : 0);
     const scoreB = (b.is_my_tutorship ? 2 : 0) + (b.is_active ? 1 : 0);
 
-    // Agrupa pela pontuação primária
     if (scoreA !== scoreB) return scoreB - scoreA;
 
-    // Aplica a preferência secundária de ordenação
     if (sortBy.value === 'name_asc') {
       return a.name.localeCompare(b.name);
     } else {
@@ -222,8 +217,6 @@ const fetchAnimals = async (silent = false) => {
   if (!silent) isLoading.value = true
   try {
     const res = await api.get('/animais')
-    // Update existing or add new to avoid re-rendering entire list which breaks scrolling
-    // Vue usually handles this fine with simple reassignment if keys match, but for safety:
     animals.value = res.data
   } catch (e) {
     console.error('Erro ao buscar listagem', e)
@@ -332,7 +325,6 @@ const handleLogout = () => {
 .animal-card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
 .inactive-card { opacity: 0.65; filter: grayscale(50%); }
 
-/* ESTILIZAÇÃO DO EFEITO DA PILHA DE FOTOS */
 .photo-stack { 
   height: 220px; position: relative; background: #e2e8f0; cursor: pointer;
 }

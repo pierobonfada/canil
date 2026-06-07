@@ -14,7 +14,6 @@ const router = useRouter();
 onMounted(() => {
   let visitorId = localStorage.getItem('visitor_id');
   if (!visitorId) {
-    // Generate simple UUID
     visitorId = 'v_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
     localStorage.setItem('visitor_id', visitorId);
   }
