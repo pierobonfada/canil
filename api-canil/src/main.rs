@@ -17,7 +17,7 @@ use axum::{
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use std::{env, net::SocketAddr, str::FromStr};
 use tower_http::cors::{Any, CorsLayer};
-use tower_http::services::ServeDir;
+use tower_http::services::{ServeDir, ServeFile};
 
 use crate::admin_handlers::{create_admin, get_admins, get_system_logs, update_admin_status, update_admin, delete_admin};
 use crate::handlers::{
@@ -75,12 +75,23 @@ async fn main() {
     // consumam a API. Em produção, você deve restringir 'Any' para os domínios específicos.
     let cors = CorsLayer::new().allow_origin(Any).allow_headers(Any).allow_methods(Any);
 
+    // Configuração dos Servidores de Arquivos Estáticos (Frontend)
+    // Usamos o 'ServeDir' para procurar os arquivos gerados pelo Vite (js, css, imagens).
+    // O 'fallback' é essencial para SPAs: se o arquivo não existir (ex: o usuário acessou /sobre),
+    // o servidor retorna o 'index.html' e deixa o Vue Router assumir a navegação no navegador.
+    let admin_serve = ServeDir::new("../admin-canil/dist")
+        .fallback(ServeFile::new("../admin-canil/dist/index.html"));
+
+    let site_serve = ServeDir::new("../site/dist")
+        .fallback(ServeFile::new("../site/dist/index.html"));
+
     // Construção das rotas (Router).
     // O Axum mapeia caminhos da URL para funções (handlers). 
     // 'nest_service' serve arquivos estáticos, enquanto 'route' atrela endpoints a verbos HTTP.
     let app = Router::new()
         .nest_service("/uploads", ServeDir::new("uploads"))
-                .route("/api/auth/login", post(login_handler))
+        .nest_service("/admin", admin_serve)
+        .route("/api/auth/login", post(login_handler))
         .route("/api/admins", get(get_admins).post(create_admin))
         .route("/api/admins/:id", put(update_admin).delete(delete_admin))
         .route("/api/admins/:id/status", patch(update_admin_status))
@@ -98,7 +109,8 @@ async fn main() {
         .route("/api/public/animais/:id", get(get_public_animal))
         .route("/api/public/analytics", post(register_event))
         .layer(cors)
-        .with_state(state);
+        .with_state(state)
+        .fallback_service(site_serve);
 
     // Define o endereço em que o servidor irá escutar (todas as interfaces na porta 8000).
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));

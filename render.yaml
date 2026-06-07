@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: canil-app
+    env: docker
+    plan: free # Plano gratuito do Render
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: DATABASE_URL
+        value: sqlite:///app/canil.db
+      - key: JWT_SECRET
+        generateValue: true # O Render vai gerar automaticamente um secret aleatório super seguro e mantê-lo salvo
