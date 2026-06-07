@@ -173,16 +173,19 @@ pub async fn create_animal(
     let mut diseases: Vec<String> = Vec::new();
     let mut total_bytes: usize = 0;
 
-    while let Ok(Some(field)) = multipart.next_field().await {
+    while let Ok(Some(mut field)) = multipart.next_field().await {
         let field_name = field.name().unwrap_or("").to_string();
         if field_name == "photo" {
-            if let Ok(data) = field.bytes().await {
-                if !data.is_empty() { 
-                    total_bytes += data.len();
-                    if let Ok(Ok(path)) = tokio::task::spawn_blocking(move || crate::image_utils::process_and_save_image(data)).await { 
-                        photos.push(path); 
-                    } 
-                }
+            let mut data = Vec::new();
+            while let Ok(Some(chunk)) = field.chunk().await {
+                data.extend_from_slice(&chunk);
+            }
+            if !data.is_empty() { 
+                total_bytes += data.len();
+                let bytes_data = axum::body::Bytes::from(data);
+                if let Ok(Ok(path)) = tokio::task::spawn_blocking(move || crate::image_utils::process_and_save_image(bytes_data)).await { 
+                    photos.push(path); 
+                } 
             }
         } else if let Ok(text) = field.text().await {
             match field_name.as_str() {
@@ -322,16 +325,19 @@ pub async fn update_animal(
     let mut primary_photo = String::new();
     let mut total_bytes: usize = 0;
 
-    while let Ok(Some(field)) = multipart.next_field().await {
+    while let Ok(Some(mut field)) = multipart.next_field().await {
         let field_name = field.name().unwrap_or("").to_string();
         if field_name == "photo" {
-            if let Ok(data) = field.bytes().await {
-                if !data.is_empty() { 
-                    total_bytes += data.len();
-                    if let Ok(Ok(path)) = tokio::task::spawn_blocking(move || crate::image_utils::process_and_save_image(data)).await { 
-                        photos.push(path); 
-                    } 
-                }
+            let mut data = Vec::new();
+            while let Ok(Some(chunk)) = field.chunk().await {
+                data.extend_from_slice(&chunk);
+            }
+            if !data.is_empty() { 
+                total_bytes += data.len();
+                let bytes_data = axum::body::Bytes::from(data);
+                if let Ok(Ok(path)) = tokio::task::spawn_blocking(move || crate::image_utils::process_and_save_image(bytes_data)).await { 
+                    photos.push(path); 
+                } 
             }
         } else if let Ok(text) = field.text().await {
             match field_name.as_str() {
