@@ -1,6 +1,6 @@
 import os
 import requests
-import urllib.request
+
 import time
 import random
 import argparse
@@ -13,14 +13,6 @@ def login(url, email, password):
     if res.status_code == 200:
         return res.json()["token"]
     raise Exception(f"Login failed: {res.text}")
-
-def download_image(url, filename):
-    if not os.path.exists(filename):
-        print(f"Downloading {filename}...")
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req) as response, open(filename, 'wb') as out_file:
-            out_file.write(response.read())
-        time.sleep(0.5)
 
 def create_animal(url, token, species, name, photo_path, delay):
     print(f"Creating {species}: {name}")
@@ -151,20 +143,18 @@ def main():
 
         print("Fetching images and creating profiles. This might take a minute...")
 
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+
         for i in range(num_dogs):
             photo_index = i % len(dogs)
             name = dogs[photo_index] + (f" {i//len(dogs)}" if i >= len(dogs) else "")
-            photo_path = f"photos/dog_{photo_index}.jpg"
-            if i < len(dogs):
-                download_image(f"https://placedog.net/400/400?id={photo_index+1}", photo_path)
+            photo_path = os.path.join(script_dir, "photos", f"dog_{photo_index}.jpg")
             create_animal(args.url, token, "Cachorro", name, photo_path, args.delay)
 
         for i in range(num_cats):
             photo_index = i % len(cats)
             name = cats[photo_index] + (f" {i//len(cats)}" if i >= len(cats) else "")
-            photo_path = f"photos/cat_{photo_index}.jpg"
-            if i < len(cats):
-                download_image(f"https://placecats.com/400/400?id={photo_index+1}", photo_path)
+            photo_path = os.path.join(script_dir, "photos", f"cat_{photo_index}.jpg")
             create_animal(args.url, token, "Gato", name, photo_path, args.delay)
 
     if args.simulate_traffic or args.populate_animals or args.overflow:
