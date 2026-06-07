@@ -11,6 +11,7 @@ pub mod image_utils;        // Utilitários para redimensionamento e salvamento 
 pub mod models;             // Estruturas de dados (structs) que representam as tabelas do banco e payloads.
 
 use axum::{
+    extract::DefaultBodyLimit,
     routing::{get, patch, post, put},
     Router,
 };
@@ -100,6 +101,8 @@ async fn async_main() {
     // Construção das rotas (Router).
     // O Axum mapeia caminhos da URL para funções (handlers). 
     // 'nest_service' serve arquivos estáticos, enquanto 'route' atrela endpoints a verbos HTTP.
+    let max_upload_mb: usize = std::env::var("MAX_UPLOAD_MB").unwrap_or_else(|_| "1000".to_string()).parse().unwrap_or(1000);
+
     let app = Router::new()
         .nest_service("/uploads", ServeDir::new("uploads"))
         .nest_service("/admin", admin_serve)
@@ -121,6 +124,7 @@ async fn async_main() {
         .route("/api/public/animais/:id", get(get_public_animal))
         .route("/api/public/analytics", post(register_event))
         .layer(cors)
+        .layer(DefaultBodyLimit::max(max_upload_mb * 1024 * 1024))
         .with_state(state)
         .fallback_service(site_serve);
 

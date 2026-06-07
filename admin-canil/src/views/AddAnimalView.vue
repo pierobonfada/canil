@@ -160,8 +160,13 @@ o novo pet direto para o estrelato da Home pública! -->
           </div>
         </section>
 
+        <div v-if="isLoading" class="progress-container">
+          <div class="progress-bar" :style="{ width: uploadProgress + '%' }"></div>
+          <span class="progress-text">{{ uploadProgress }}% - {{ uploadProgress === 100 ? 'Processando fotos no servidor...' : 'Enviando arquivos...' }}</span>
+        </div>
+
         <button type="submit" class="btn-submit" :disabled="isLoading">
-          {{ isLoading ? 'Salvando registro...' : 'Cadastrar Animal no Sistema' }}
+          {{ isLoading ? 'Aguarde...' : 'Cadastrar Animal no Sistema' }}
         </button>
       </form>
     </main>
@@ -175,6 +180,7 @@ import api from '../services/api'
 
 const router = useRouter()
 const isLoading = ref(false)
+const uploadProgress = ref(0)
 const selectedFiles = ref<File[]>([])
 
 const form = ref({ 
@@ -191,7 +197,15 @@ const handleFileUpload = (e: any) => {
 }
 
 const submitForm = async () => {
+  const totalSize = selectedFiles.value.reduce((acc, file) => acc + file.size, 0)
+  const maxMb = Number(import.meta.env.VITE_MAX_UPLOAD_MB) || 1000
+  if (totalSize > maxMb * 1024 * 1024) {
+    alert(`O tamanho total das fotos excede o limite de ${maxMb}MB. Reduza a quantidade ou o tamanho das imagens.`)
+    return
+  }
+
   isLoading.value = true
+  uploadProgress.value = 0
   const formData = new FormData()
   
   Object.entries(form.value).forEach(([key, value]) => {
@@ -201,13 +215,20 @@ const submitForm = async () => {
   selectedFiles.value.forEach(file => formData.append('photo', file))
 
   try {
-    await api.post('/animais', formData)
+    await api.post('/animais', formData, {
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+        }
+      }
+    })
     alert('Cadastrado com sucesso!')
     router.push('/dashboard')
   } catch (e: any) {
     alert('Erro: ' + (e.response?.data?.error || 'Falha no envio'))
   } finally {
     isLoading.value = false
+    uploadProgress.value = 0
   }
 }
 </script>
@@ -233,5 +254,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #22c55e
 .btn-submit { width: 100%; padding: 1.2rem; background: #166534; color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 1.1rem; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 6px rgba(22, 101, 52, 0.2); }
 .btn-submit:hover:not(:disabled) { transform: translateY(-2px); background: #14532d; box-shadow: 0 6px 12px rgba(22, 101, 52, 0.3); }
 .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
+.progress-container { margin-bottom: 1.5rem; background: #e2e8f0; border-radius: 8px; overflow: hidden; position: relative; height: 30px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+.progress-bar { height: 100%; background: linear-gradient(90deg, #22c55e, #16a34a); transition: width 0.3s ease; }
+.progress-text { position: absolute; width: 100%; text-align: center; top: 50%; left: 0; transform: translateY(-50%); font-weight: bold; color: #1e293b; font-size: 0.9rem; z-index: 10; text-shadow: 0px 0px 2px white; }
 @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .form-content { padding: 1rem; } }
 </style>

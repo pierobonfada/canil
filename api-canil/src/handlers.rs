@@ -171,12 +171,14 @@ pub async fn create_animal(
     let (mut behavior_dogs, mut behavior_cats, mut behavior_humans, mut independence, mut size, mut coat_color, mut predominant_color, mut coat_length, mut description) = (String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new());
     let mut photos: Vec<String> = Vec::new();
     let mut diseases: Vec<String> = Vec::new();
+    let mut total_bytes: usize = 0;
 
     while let Ok(Some(field)) = multipart.next_field().await {
         let field_name = field.name().unwrap_or("").to_string();
         if field_name == "photo" {
             if let Ok(data) = field.bytes().await {
                 if !data.is_empty() { 
+                    total_bytes += data.len();
                     if let Ok(Ok(path)) = tokio::task::spawn_blocking(move || crate::image_utils::process_and_save_image(data)).await { 
                         photos.push(path); 
                     } 
@@ -210,9 +212,11 @@ pub async fn create_animal(
     
     sqlx::query("INSERT INTO animal_tutors (animal_id, admin_id) VALUES (?, ?)").bind(animal_id).bind(claims.sub).execute(&mut *tx).await.unwrap();
     let admin_name: String = sqlx::query_scalar("SELECT name FROM admins WHERE id = ?").bind(claims.sub).fetch_one(&mut *tx).await.unwrap_or_else(|_| "Desconhecido".to_string());
-    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', ?)")
+    let total_mb = total_bytes as f64 / 1024.0 / 1024.0;
+    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, remote_ip, animal_id) VALUES (?, ?, 'WARNING', ?, ?)")
         .bind(claims.sub)
-        .bind(format!("O administrador {} (ID: {}) cadastrou o animal \"{}\" (ID: {})", admin_name, claims.sub, name, animal_id))
+        .bind(format!("O administrador {} (ID: {}) cadastrou o animal \"{}\" (ID: {}) com {:.2} MB de fotos.", admin_name, claims.sub, name, animal_id, total_mb))
+        .bind(&ip)
         .bind(animal_id)
         .execute(&mut *tx).await.unwrap();
     
@@ -316,12 +320,14 @@ pub async fn update_animal(
     let mut active_photos: Vec<String> = Vec::new();
     let mut inactive_photos: Vec<String> = Vec::new();
     let mut primary_photo = String::new();
+    let mut total_bytes: usize = 0;
 
     while let Ok(Some(field)) = multipart.next_field().await {
         let field_name = field.name().unwrap_or("").to_string();
         if field_name == "photo" {
             if let Ok(data) = field.bytes().await {
                 if !data.is_empty() { 
+                    total_bytes += data.len();
                     if let Ok(Ok(path)) = tokio::task::spawn_blocking(move || crate::image_utils::process_and_save_image(data)).await { 
                         photos.push(path); 
                     } 
@@ -385,9 +391,11 @@ pub async fn update_animal(
     }
 
     let admin_name: String = sqlx::query_scalar("SELECT name FROM admins WHERE id = ?").bind(claims.sub).fetch_one(&mut *tx).await.unwrap_or_else(|_| "Desconhecido".to_string());
-    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, animal_id) VALUES (?, ?, 'WARNING', ?)")
+    let total_mb = total_bytes as f64 / 1024.0 / 1024.0;
+    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, remote_ip, animal_id) VALUES (?, ?, 'WARNING', ?, ?)")
         .bind(claims.sub)
-        .bind(format!("O administrador {} (ID: {}) editou o animal \"{}\" (ID: {})", admin_name, claims.sub, name, id))
+        .bind(format!("O administrador {} (ID: {}) editou o animal \"{}\" (ID: {}) com upload de {:.2} MB de fotos.", admin_name, claims.sub, name, id, total_mb))
+        .bind(&ip)
         .bind(id)
         .execute(&mut *tx).await.unwrap();
     tx.commit().await.unwrap();
