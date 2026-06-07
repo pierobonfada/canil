@@ -5,7 +5,6 @@ use axum::{
 };
 use serde_json::Value;
 use std::net::SocketAddr;
-use uuid::Uuid;
 
 use crate::models::{
     AppState, ErrorResponse, AnalyticsEventRequest, AnalyticsDashboardResponse,
