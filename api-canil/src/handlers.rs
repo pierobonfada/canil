@@ -169,7 +169,11 @@ pub async fn create_animal(
         let field_name = field.name().unwrap_or("").to_string();
         if field_name == "photo" {
             if let Ok(data) = field.bytes().await {
-                if !data.is_empty() { if let Ok(path) = crate::image_utils::process_and_save_image(data) { photos.push(path); } }
+                if !data.is_empty() { 
+                    if let Ok(Ok(path)) = tokio::task::spawn_blocking(move || crate::image_utils::process_and_save_image(data)).await { 
+                        photos.push(path); 
+                    } 
+                }
             }
         } else if let Ok(text) = field.text().await {
             match field_name.as_str() {
@@ -307,7 +311,11 @@ pub async fn update_animal(
         let field_name = field.name().unwrap_or("").to_string();
         if field_name == "photo" {
             if let Ok(data) = field.bytes().await {
-                if !data.is_empty() { if let Ok(path) = crate::image_utils::process_and_save_image(data) { photos.push(path); } }
+                if !data.is_empty() { 
+                    if let Ok(Ok(path)) = tokio::task::spawn_blocking(move || crate::image_utils::process_and_save_image(data)).await { 
+                        photos.push(path); 
+                    } 
+                }
             }
         } else if let Ok(text) = field.text().await {
             match field_name.as_str() {

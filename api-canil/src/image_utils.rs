@@ -14,7 +14,7 @@ pub fn process_and_save_image(bytes: Bytes) -> Result<String, String> {
     let img = image::load_from_memory(&bytes)
         .map_err(|e| format!("Falha ao ler formato da imagem: {}", e))?;
 
-    let resized = img.resize(800, 800, FilterType::Lanczos3);
+    let resized = img.resize(800, 800, FilterType::Triangle);
 
     let filename = format!("{}.jpg", Uuid::new_v4());
     let filepath = format!("uploads/{}", filename);
@@ -25,6 +25,14 @@ pub fn process_and_save_image(bytes: Bytes) -> Result<String, String> {
     resized
         .write_to(&mut file, ImageFormat::Jpeg)
         .map_err(|e| format!("Falha ao salvar JPEG: {}", e))?;
+
+    // Força o gerenciador de memória do Linux (glibc) a devolver a memória RAM não utilizada 
+    // imediatamente para o Sistema Operacional, prevenindo OOM Kills no Render.
+    #[cfg(target_os = "linux")]
+    unsafe {
+        extern "C" { fn malloc_trim(pad: usize) -> i32; }
+        malloc_trim(0);
+    }
 
     Ok(filepath)
 }

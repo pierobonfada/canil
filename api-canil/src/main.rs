@@ -114,9 +114,10 @@ async fn main() {
         .with_state(state)
         .fallback_service(site_serve);
 
-    // Define o endereço em que o servidor irá escutar (todas as interfaces na porta 8000).
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
-    println!("Servidor rodando em http://0.0.0.0:8000");
+    // Define o endereço em que o servidor irá escutar, lendo a variável PORT (padrão 8000)
+    let port = std::env::var("PORT").unwrap_or_else(|_| "8000".to_string()).parse::<u16>().unwrap();
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    println!("Servidor rodando em http://0.0.0.0:{}", port);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     
     // Inicia o servidor recebendo conexões na porta vinculada.

@@ -68,6 +68,7 @@ permissão de Master ('v-if="isMaster"'). -->
                 :src="getPhotoUrl(photo.file_path)" 
                 class="stacked-img"
                 :class="'stack-layer-' + index"
+                loading="lazy"
                 alt="Foto do animal"
               />
               <div v-if="getActivePhotos(animal).length > 1" class="stack-badge">
@@ -342,6 +343,7 @@ const handleLogout = () => {
   background: white; border-radius: 12px; overflow: hidden; 
   box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f1f5f9; 
   display: flex; flex-direction: column; transition: 0.3s; 
+  content-visibility: auto; contain-intrinsic-size: auto none auto 380px;
 }
 .animal-card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
 .inactive-card { opacity: 0.65; filter: grayscale(50%); }
