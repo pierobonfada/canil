@@ -1,0 +1,10 @@
+api-canil/uploads/
+api-canil/canil.db
+api-canil/canil.db-shm
+api-canil/canil.db-wal
+canil.db
+
+**/.env
+**/.env.*
+node_modules/
+dist/
