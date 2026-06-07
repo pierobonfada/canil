@@ -22,9 +22,14 @@ RUN npm run build
 # STAGE 3: Build do Backend (Rust)
 # ==========================================
 FROM rust:1-bookworm AS builder-rust
+RUN apt-get update && apt-get install -y sqlite3
 WORKDIR /app
 COPY api-canil/ ./api-canil
 WORKDIR /app/api-canil
+# Cria o banco vazio e as tabelas com o schema antes de compilar
+RUN sqlite3 canil.db < schema.sql
+# Define a URL do banco durante o build para as macros do SQLx compilarem corretamente
+ENV DATABASE_URL="sqlite:///app/api-canil/canil.db"
 # Compila o projeto em modo Release (otimizado para produção)
 RUN cargo build --release
 
