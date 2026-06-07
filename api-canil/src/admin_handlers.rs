@@ -85,8 +85,11 @@ pub async fn get_admins(
 pub async fn create_admin(
     claims: Claims,
     State(state): State<AppState>,
+    axum::extract::ConnectInfo(addr): axum::extract::ConnectInfo<std::net::SocketAddr>,
+    headers: axum::http::HeaderMap,
     Json(payload): Json<CreateAdminRequest>,
 ) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
+    let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()).map(|s| s.to_string()).unwrap_or_else(|| addr.ip().to_string());
     let req_admin = check_master(&claims, &state).await?;
 
     if payload.is_master && req_admin.email != "master@master.master" {
@@ -105,8 +108,8 @@ pub async fn create_admin(
         return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Erro ao criar admin. Email já existe?".to_string(), remaining_attempts: None })));
     }
 
-    sqlx::query("INSERT INTO action_logs (admin_id, action, severity) VALUES (?, ?, \"WARNING\")")
-        .bind(claims.sub).bind(format!("Administrador master {} acrescentou o administrador {}", req_admin.email, payload.email)).execute(&state.pool).await.unwrap();
+    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, remote_ip) VALUES (?, ?, \"WARNING\", ?)")
+        .bind(claims.sub).bind(format!("Administrador master {} acrescentou o administrador {}", req_admin.email, payload.email)).bind(&ip).execute(&state.pool).await.unwrap();
 
     Ok(Json(format!("Administrador criado! A senha padrão é: {}", temp_password)))
 }
@@ -115,8 +118,11 @@ pub async fn update_admin_status(
     claims: Claims,
     State(state): State<AppState>,
     Path(id): Path<i64>,
+    axum::extract::ConnectInfo(addr): axum::extract::ConnectInfo<std::net::SocketAddr>,
+    headers: axum::http::HeaderMap,
     Json(payload): Json<UpdateAdminStatusRequest>,
 ) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
+    let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()).map(|s| s.to_string()).unwrap_or_else(|| addr.ip().to_string());
     let req_admin = check_master(&claims, &state).await?;
 
     if id == 1 && req_admin.id != 1 {
@@ -147,8 +153,8 @@ pub async fn update_admin_status(
         sqlx::query("UPDATE admins SET is_active = ? WHERE id = ?").bind(is_active).bind(id).execute(&state.pool).await.unwrap();
         
         let action_str = if is_active { "ativou" } else { "desativou" };
-        sqlx::query("INSERT INTO action_logs (admin_id, action, severity) VALUES (?, ?, \"WARNING\")")
-            .bind(claims.sub).bind(format!("Administrador master {} {} o administrador {}", req_admin.email, action_str, target_email)).execute(&state.pool).await.unwrap();
+        sqlx::query("INSERT INTO action_logs (admin_id, action, severity, remote_ip) VALUES (?, ?, \"WARNING\", ?)")
+            .bind(claims.sub).bind(format!("Administrador master {} {} o administrador {}", req_admin.email, action_str, target_email)).bind(&ip).execute(&state.pool).await.unwrap();
     }
 
     if let Some(force_reset) = payload.force_password_reset {
@@ -157,8 +163,8 @@ pub async fn update_admin_status(
             let hashed_pw = bcrypt::hash(&temp_password, bcrypt::DEFAULT_COST).unwrap();
             sqlx::query("UPDATE admins SET password = ?, is_first_login = 1 WHERE id = ?").bind(hashed_pw).bind(id).execute(&state.pool).await.unwrap();
             
-            sqlx::query("INSERT INTO action_logs (admin_id, action, severity) VALUES (?, ?, \"CRITICAL\")")
-                .bind(claims.sub).bind(format!("Forçou reset de senha do admin: {}", target_email)).execute(&state.pool).await.unwrap();
+            sqlx::query("INSERT INTO action_logs (admin_id, action, severity, remote_ip) VALUES (?, ?, \"CRITICAL\", ?)")
+                .bind(claims.sub).bind(format!("Forçou reset de senha do admin: {}", target_email)).bind(&ip).execute(&state.pool).await.unwrap();
                 
             response_msg = format!("Senha resetada! A nova senha temporária é: {}", temp_password);
         }
@@ -167,15 +173,15 @@ pub async fn update_admin_status(
     if let Some(is_locked) = payload.is_locked {
         if !is_locked {
             sqlx::query("UPDATE admins SET is_locked = 0, failed_attempts = 0 WHERE id = ?").bind(id).execute(&state.pool).await.unwrap();
-            sqlx::query("INSERT INTO action_logs (admin_id, action, severity) VALUES (?, ?, \"WARNING\")")
-                .bind(claims.sub).bind(format!("Desbloqueou a conta do admin: {}", target_email)).execute(&state.pool).await.unwrap();
+            sqlx::query("INSERT INTO action_logs (admin_id, action, severity, remote_ip) VALUES (?, ?, \"WARNING\", ?)")
+                .bind(claims.sub).bind(format!("Desbloqueou a conta do admin: {}", target_email)).bind(&ip).execute(&state.pool).await.unwrap();
             response_msg = "Conta desbloqueada com sucesso!".to_string();
         }
     }
 
     if payload.is_active.is_none() && payload.force_password_reset.is_none() && payload.is_locked.is_none() && payload.is_master.is_some() {
-        sqlx::query("INSERT INTO action_logs (admin_id, action, severity) VALUES (?, ?, \"WARNING\")")
-            .bind(claims.sub).bind(format!("Atualizou status do admin: {}", target_email)).execute(&state.pool).await.unwrap();
+        sqlx::query("INSERT INTO action_logs (admin_id, action, severity, remote_ip) VALUES (?, ?, \"WARNING\", ?)")
+            .bind(claims.sub).bind(format!("Atualizou status do admin: {}", target_email)).bind(&ip).execute(&state.pool).await.unwrap();
     }
 
     Ok(Json(response_msg))
@@ -191,7 +197,7 @@ pub async fn get_system_logs(
     let mut logs: Vec<SystemLog> = Vec::new();
 
     if filters.log_type.is_none() || filters.log_type.as_deref() == Some("action") {
-        let mut query = String::from("SELECT id, \"action\" as log_type, severity, action as description, admin_id, animal_id, \"N/A\" as remote_ip, timestamp FROM action_logs WHERE 1=1");
+        let mut query = String::from("SELECT id, \"action\" as log_type, severity, action as description, admin_id, animal_id, remote_ip, timestamp FROM action_logs WHERE 1=1");
         if let Some(admin_id) = filters.admin_id { query.push_str(&format!(" AND admin_id = {}", admin_id)); }
         if let Some(animal_id) = filters.animal_id { query.push_str(&format!(" AND animal_id = {}", animal_id)); }
         if let Some(ref sev) = filters.severity { query.push_str(&format!(" AND severity = \"{}\"", sev)); }
@@ -236,8 +242,11 @@ pub async fn update_admin(
     Path(id): Path<i64>,
     claims: Claims,
     State(state): State<AppState>,
+    axum::extract::ConnectInfo(addr): axum::extract::ConnectInfo<std::net::SocketAddr>,
+    headers: axum::http::HeaderMap,
     Json(payload): Json<UpdateAdminRequest>,
 ) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
+    let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()).map(|s| s.to_string()).unwrap_or_else(|| addr.ip().to_string());
     check_master(&claims, &state).await?;
 
     let target_admin = sqlx::query!("SELECT email FROM admins WHERE id = ?", id)
@@ -266,8 +275,8 @@ pub async fn update_admin(
         .await
         .unwrap();
 
-    sqlx::query("INSERT INTO action_logs (admin_id, action, severity) VALUES (?, ?, \"WARNING\")")
-        .bind(claims.sub).bind(format!("Atualizou dados do admin ID: {}", id)).execute(&state.pool).await.unwrap();
+    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, remote_ip) VALUES (?, ?, \"WARNING\", ?)")
+        .bind(claims.sub).bind(format!("Atualizou dados do admin ID: {}", id)).bind(&ip).execute(&state.pool).await.unwrap();
 
     Ok(Json("Administrador atualizado com sucesso!".to_string()))
 }
@@ -276,7 +285,10 @@ pub async fn delete_admin(
     Path(id): Path<i64>,
     claims: Claims,
     State(state): State<AppState>,
+    axum::extract::ConnectInfo(addr): axum::extract::ConnectInfo<std::net::SocketAddr>,
+    headers: axum::http::HeaderMap,
 ) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
+    let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()).map(|s| s.to_string()).unwrap_or_else(|| addr.ip().to_string());
     let req_admin = check_master(&claims, &state).await?;
 
     let target_admin = sqlx::query!("SELECT email FROM admins WHERE id = ?", id)
@@ -295,8 +307,8 @@ pub async fn delete_admin(
         .await
         .unwrap();
 
-    sqlx::query("INSERT INTO action_logs (admin_id, action, severity) VALUES (?, ?, \"WARNING\")")
-        .bind(claims.sub).bind(format!("Administrador master {} removeu o administrador {}", req_admin.email, target_admin.email)).execute(&state.pool).await.unwrap();
+    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, remote_ip) VALUES (?, ?, \"WARNING\", ?)")
+        .bind(claims.sub).bind(format!("Administrador master {} removeu o administrador {}", req_admin.email, target_admin.email)).bind(&ip).execute(&state.pool).await.unwrap();
 
     Ok(Json("Administrador removido com sucesso!".to_string()))
 }

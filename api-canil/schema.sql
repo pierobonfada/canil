@@ -38,6 +38,7 @@
             admin_id INTEGER NOT NULL,
             action TEXT NOT NULL,
             severity TEXT NOT NULL DEFAULT "INFO",
+            remote_ip TEXT NOT NULL DEFAULT '0.0.0.0',
             animal_id INTEGER,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(admin_id) REFERENCES admins(id) ON DELETE CASCADE
