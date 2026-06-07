@@ -47,14 +47,19 @@ COPY --from=builder-site /app/site/dist ./site/dist
 COPY --from=builder-admin /app/admin-canil/dist ./admin-canil/dist
 
 # Copia o binário compilado no estágio 3
-COPY --from=builder-rust /app/api-canil/target/release/api-canil ./api-canil-bin
+COPY --from=builder-rust /app/api-canil/target/release/api-canil ./api-canil/api-canil-bin
 
 # Expor a porta 8000
 EXPOSE 8000
 
 # Variáveis de Ambiente default para o Render
 ENV PORT=8000
-ENV DATABASE_URL="sqlite:///app/canil.db"
+ENV DATABASE_URL="sqlite:///app/api-canil/canil.db"
+ENV SITE_DIST="/app/site/dist"
+ENV ADMIN_DIST="/app/admin-canil/dist"
+
+# Muda o diretório de trabalho para bater com os caminhos relativos do Rust (../site e ../admin-canil)
+WORKDIR /app/api-canil
 
 # Comando para rodar a API
 CMD ["./api-canil-bin"]
