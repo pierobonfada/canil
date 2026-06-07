@@ -204,7 +204,7 @@ const getPrimaryPhoto = (animal: any) => {
   if (!animal.photos || animal.photos.length === 0) return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="%23cccccc"/><text x="50%" y="50%" fill="%23000000" text-anchor="middle" dy=".3em">Sem Foto</text></svg>';
   const primary = animal.photos.find((p: any) => p.is_primary);
   const path = primary ? primary.file_path : animal.photos[0].file_path;
-  const baseUrl = (import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000/api`).replace('/api', '');
+  const baseUrl = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000/api' : '/api')).replace('/api', '');
   return `${baseUrl}/${path.startsWith('uploads') ? path : 'uploads/' + path}`;
 };
 

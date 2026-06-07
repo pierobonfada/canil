@@ -219,7 +219,7 @@ const form = ref({
 })
 
 const getPhotoUrl = (photo: string) => {
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+  const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000/api' : '/api');
   const baseUrl = apiUrl.replace('/api', ''); 
   const cleanPhoto = photo.startsWith('uploads/') ? photo : `uploads/${photo}`;
   return `${baseUrl}/${cleanPhoto}`;

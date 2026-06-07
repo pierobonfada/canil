@@ -10,7 +10,7 @@ import axios from 'axios';
 const api = axios.create({
   // Tenta pegar a URL do arquivo .env. Se não existir, tenta inferir dinamicamente 
   // usando o hostname atual na porta 8000.
-  baseURL: import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8000/api`,
+  baseURL: import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000/api' : '/api'),
   timeout: 10000, // Se o backend demorar mais de 10s, a requisição falha (evita tela infinita de loading).
 });
 
