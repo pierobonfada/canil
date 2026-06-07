@@ -1,11 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 // ==========================================
-// 🗺️ O MAPA DO SITE (ROUTER)
+// ROTEAMENTO (VUE ROUTER)
 // ==========================================
-// Pense no Router como o GPS do nosso site. É ele que decide para qual página
-// o visitante vai ser levado quando clica num link.
-// Por exemplo: se ele acessar "/", ele vai pra Home. Se acessar "/animal/1", vai ver o perfil do Totó!
+// O Vue Router gerencia a navegação Client-Side (SPA - Single Page Application).
+// Diferente de sites tradicionais onde cada clique recarrega a página inteira baixando
+// HTML do servidor, aqui o Vue apenas troca os componentes na tela dinamicamente.
 
 import HomeView from '../views/HomeView.vue'
 

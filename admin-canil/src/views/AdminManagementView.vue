@@ -45,7 +45,7 @@
                 {{ admin.is_active ? 'Ativo' : 'Inativo' }}
               </span>
             </td>
-            <td>
+            <td class="actions-cell">
               <button @click="openEditModal(admin)" class="btn-sm btn-blue">
                 ✏️ Editar
               </button>
@@ -241,10 +241,11 @@ onMounted(() => {
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table th, .data-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #eee; }
 .inactive-row { background-color: #fef2f2; color: #666; }
-.badge-green { background: #d1fae5; color: #065f46; padding: 0.2rem 0.5rem; border-radius: 99px; font-size: 0.8rem; }
-.badge-red { background: #fee2e2; color: #991b1b; padding: 0.2rem 0.5rem; border-radius: 99px; font-size: 0.8rem; }
-.badge-black { background: #1f2937; color: #ffffff; padding: 0.2rem 0.5rem; border-radius: 99px; font-size: 0.8rem; display: inline-block; }
-.btn-sm { margin-right: 0.5rem; padding: 0.3rem 0.6rem; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; color: white; margin-bottom: 0.2rem; }
+.badge-green { background: #d1fae5; color: #065f46; padding: 0.2rem 0.5rem; border-radius: 99px; font-size: 0.8rem; white-space: nowrap; }
+.badge-red { background: #fee2e2; color: #991b1b; padding: 0.2rem 0.5rem; border-radius: 99px; font-size: 0.8rem; white-space: nowrap; }
+.badge-black { background: #1f2937; color: #ffffff; padding: 0.2rem 0.5rem; border-radius: 99px; font-size: 0.8rem; display: inline-block; white-space: nowrap; }
+.btn-sm { padding: 0.3rem 0.6rem; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; color: white; white-space: nowrap; }
+.actions-cell { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .btn-warn { background: #f59e0b; }
 .btn-purple { background: #8b5cf6; }
 .btn-blue { background: #3b82f6; }

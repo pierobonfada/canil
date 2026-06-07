@@ -2,12 +2,15 @@ use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 
 // ==========================================
-// 📦 MODELOS DE DADOS E ESTRUTURAS (STRUCTS)
+// MODELOS DE DADOS E ESTRUTURAS (STRUCTS)
 // ==========================================
-// Pense neste arquivo como a "fábrica de forminhas". Cada Struct dita 
-// exatamente o formato que os dados devem ter quando entram e saem do sistema!
+// Este arquivo centraliza todas as estruturas de dados.
+// No Rust, usamos as macros de derive (Serialize, Deserialize) do pacote 'serde'
+// para converter automaticamente entre objetos JSON (que trafegam na web) 
+// e as Structs tipadas do Rust.
 
-// 🔐 Como o administrador vai bater na porta (login)
+// Estrutura esperada no corpo (Body) da requisição POST para login.
+// Como recebemos dados do cliente web, precisamos do 'Deserialize'.
 
 
 #[derive(Deserialize)]
@@ -16,7 +19,9 @@ pub struct LoginRequest {
     pub password: String,
 }
 
-// 🎟️ O que entregamos pro administrador caso a senha esteja correta
+// Estrutura da resposta HTTP para um login bem-sucedido.
+// Como enviamos esses dados para o frontend, usamos o 'Serialize' 
+// para transformá-los em JSON.
 #[derive(Serialize)]
 pub struct LoginResponse {
     pub token: String, // O crachá digital!
@@ -27,21 +32,25 @@ pub struct LoginResponse {
     pub pref_sort_by: String,
 }
 
-// ⚠️ E se algo der errado? Retornamos essa caixinha de erro amigável.
+// Estrutura padronizada para devolução de erros da API.
+// *Pitfall*: Padronizar a resposta de erros facilita o tratamento no frontend (Axios interceptors, por ex).
 #[derive(Serialize)]
 pub struct ErrorResponse {
     pub error: String,
     pub remaining_attempts: Option<i32>,
 }
 
-// 📜 O que fica escrito "dentro" do nosso crachá JWT
+// Claims (dados) que serão embutidos no token JWT.
+// Contém o 'sub' (Subject = ID do usuário) e 'exp' (Expiration = timestamp de expiração).
 #[derive(Serialize, Deserialize)]
 pub struct Claims {
     pub sub: i64,
     pub exp: usize,
 }
 
-// 🧑‍💼 Representação fiel de um administrador salvo lá no banco SQLite
+// Representação de um registro na tabela 'admins'.
+// A macro 'sqlx::FromRow' permite que o SQLx converta automaticamente 
+// as linhas de um SELECT (no banco) diretamente para esta Struct.
 #[derive(sqlx::FromRow)]
 pub struct AdminRecord {
     pub id: i64,
@@ -57,14 +66,16 @@ pub struct AdminRecord {
     pub is_locked: bool,
 }
 
-// 🌍 Estado Global: é assim que nossos Handlers conseguem conversar com o banco
+// Estado Global repassado a todos os Handlers do Axum.
+// Precisamos derivar 'Clone' porque o Axum faz cópias desse estado 
+// para repassá-lo concorrentemente a cada requisição.
 #[derive(Clone)]
 pub struct AppState {
     pub pool: SqlitePool,
 }
 
 // ==========================================
-// 🐶 MODELOS DO PAINEL (CRUD DE ANIMAIS)
+// MODELOS DO PAINEL (CRUD DE ANIMAIS)
 // ==========================================
 
 

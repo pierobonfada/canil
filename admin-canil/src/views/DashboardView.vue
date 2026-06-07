@@ -1,9 +1,9 @@
 <!-- ========================================== -->
-<!-- 📊 DASHBOARD: A Sala de Comando -->
+<!-- DASHBOARD DO ADMIN: RENDERIZAÇÃO CONDICIONAL -->
 <!-- ========================================== -->
-<!-- Aqui é o Quartel General dos administradores. Eles podem ver a lista
-de todos os animais, quem é o tutor de quem, inativar perfis e até ver
-algumas métricas (se forem Master). -->
+<!-- Este componente demonstra o uso avançado de diretivas como 'v-if' e 'v-else-if'.
+Botões como "Estatísticas" e "Logs" só são inseridos no DOM se o usuário tiver
+permissão de Master ('v-if="isMaster"'). -->
 <template>
   <div class="dashboard-container">
     <header class="top-bar">
@@ -110,6 +110,9 @@ algumas métricas (se forem Master). -->
 </template>
 
 <script setup lang="ts">
+// ==========================================
+// LÓGICA DO DASHBOARD: Polling e Computed Properties
+// ==========================================
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
@@ -155,6 +158,11 @@ const getStackedPhotos = (animal: any) => {
 
 let pollingInterval: any = null;
 
+// CICLO DE VIDA: onMounted
+// Executa assim que o componente é desenhado na tela.
+// Aqui fazemos a busca inicial e configuramos um 'Polling' (intervalo)
+// para buscar atualizações a cada 30 segundos, caso o usuário queira ver
+// se outros tutores adicionaram animais.
 onMounted(async () => {
   try {
     const resPref = await api.get('/dashboard')
@@ -176,6 +184,9 @@ onMounted(async () => {
   }
 })
 
+// CICLO DE VIDA: onUnmounted
+// *Pitfall*: Sempre limpe os intervalos (setInterval) quando o componente for destruído,
+// senão eles continuarão rodando em 'background' vazando memória!
 onUnmounted(() => {
   if (pollingInterval) clearInterval(pollingInterval)
 })
@@ -192,6 +203,10 @@ const savePreferences = async () => {
   }
 }
 
+// COMPUTED PROPERTIES (Propriedades Computadas)
+// Ao invés de mudar a lista original sempre que o usuário digita na busca,
+// criamos uma lista 'derivada'. O Vue observa 'searchQuery', 'showInactive', etc.
+// e recalcula essa lista automaticamente (e de forma muito otimizada) quando algo muda.
 const filteredAnimals = computed(() => {
   let filtered = animals.value.filter(animal => {
     const matchName = animal.name.toLowerCase().includes(searchQuery.value.toLowerCase())

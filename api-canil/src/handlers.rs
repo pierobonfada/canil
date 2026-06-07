@@ -14,16 +14,16 @@ use crate::models::{
     UpdatePreferencesRequest, DashboardResponse, PublicAnimalFilters, PublicTutorContact, PublicAnimalDetail
 };
 // ==========================================
-// 🎢 MONTANHA RUSSA DE HANDLERS (O CORAÇÃO DO BACKEND)
+// CONTROLADORES DA API (HANDLERS)
 // ==========================================
-// Cada função aqui é um "Handler". O que eles fazem? Eles ficam esperando
-// o front-end mandar requisições (como "ei, me dá a lista de animais!").
-// Eles processam os dados, conversam com o banco de dados e devolvem a resposta!
+// No Axum, um "Handler" é uma função assíncrona que recebe requisições HTTP 
+// e retorna uma resposta. O Axum usa "Extractors" (como State, Json, Path, Query)
+// nos argumentos da função para extrair automaticamente dados do corpo, URL ou estado global.
 
-// 🚪 O GUARDÃO DA PORTA: Handler de Login
-// Aqui verificamos o e-mail e senha. Se bater tudo certinho, devolvemos 
-// um Token JWT (que é tipo uma pulseirinha VIP) para o usuário navegar pelo painel!
-// Tem até sistema de travamento para chutar hackers pra longe (força bruta).
+// AUTENTICAÇÃO: Handler de Login
+// Valida e-mail e senha usando bcrypt. Se as credenciais estiverem corretas, 
+// assina e retorna um JSON Web Token (JWT).
+// O JWT é 'stateless' (não precisa ser guardado no banco) e será usado nas próximas requisições.
 pub async fn login_handler(
     State(state): State<AppState>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
@@ -125,9 +125,9 @@ pub async fn update_preferences(
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro ao salvar preferências".to_string(), remaining_attempts: None })))?;
     Ok(Json("Preferências salvas".to_string()))
 }
-// 📊 O PAINEL DE CONTROLE: Puxa o resumo do Admin
-// Aqui o sistema vê se a "pulseirinha VIP" (token) é válida e devolve as 
-// configurações do usuário para montar o painel bonitão dele.
+// HANDLER PROTEGIDO: Resumo do Admin
+// Note o extrator 'claims: Claims'. Este é um extractor customizado (implementado em auth.rs).
+// Se o token JWT não for enviado ou for inválido, o Axum nem chega a executar esta função!
 pub async fn get_dashboard(
     claims: Claims,
     State(state): State<AppState>,
@@ -152,9 +152,9 @@ pub async fn get_dashboard(
         None => Err((StatusCode::UNAUTHORIZED, Json(ErrorResponse { error: "Usuário inválido".to_string(), remaining_attempts: None })))
     }
 }
-// 🐶 NASCIMENTO DE UM NOVO PERFIL: Cadastro de Animais
-// Pega todas as infos (nome, raça, porte) e as fotos gigantes via Multipart.
-// Manda as fotos pro `image_utils` emagrecerem, e salva os dados no SQLite.
+// HANDLER MULTIPART: Cadastro de Animais
+// Usa o extrator 'Multipart' para receber não apenas JSON, mas formulários com arquivos (fotos).
+// *Pitfall*: Processamento de imagens pode ser custoso. Usamos uma função assíncrona externa.
 pub async fn create_animal(
     claims: Claims,
     State(state): State<AppState>,
@@ -208,9 +208,9 @@ pub async fn create_animal(
     tx.commit().await.unwrap();
     Ok(Json("Animal cadastrado!".to_string()))
 }
-// 📋 LISTA DE CHAMADA: Buscando os animais para o Painel Admin
-// Monta aquela lista bacana pro administrador ver quem está ativo,
-// quem são os tutores e devolve tudo empacotadinho.
+// LISTAGEM DE ANIMAIS (ADMIN)
+// Retorna a lista de animais formatada. O SQL usa subqueries para calcular 
+// o número de tutores dinamicamente.
 pub async fn get_animals(
     claims: Claims,
     State(state): State<AppState>,
@@ -420,10 +420,9 @@ pub async fn toggle_tutorship(
         Ok(Json("Tutoria assumida".to_string()))
     }
 }
-// 🌍 O PALCO PRINCIPAL: Vitrine Pública de Animais
-// Essa é a rota mais importante do site! É aqui que os visitantes veem os pets.
-// Ela já recebe os filtros (cor, idade, etc) e monta o SQL perfeito para 
-// trazer só os doguinhos ou gatinhos que o usuário procura.
+// VITRINE PÚBLICA (SITE)
+// Extrator 'Query<T>' transforma parâmetros da URL (ex: ?size=Pequeno&species=Gato)
+// diretamente na struct 'PublicAnimalFilters'. Montamos uma query SQL dinâmica com o 'QueryBuilder'.
 pub async fn get_public_animals(
     Query(filters): Query<PublicAnimalFilters>,
     State(state): State<AppState>,

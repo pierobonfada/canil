@@ -9,6 +9,13 @@ use crate::models::{
     SystemLog, UpdateAdminStatusRequest, UpdateAdminRequest,
 };
 
+// ==========================================
+// CONTROLADORES DE ADMINISTRAÇÃO (CRUD e Logs)
+// ==========================================
+// Estes handlers são responsáveis por gerenciar usuários do sistema.
+// Repare que quase todos eles chamam 'check_master' antes de qualquer coisa
+// para garantir que um voluntário comum não consiga criar outros admins.
+
 fn generate_temp_password(full_name: &str) -> String {
     let name_lower = full_name.to_lowercase();
     let chars: Vec<char> = name_lower.chars().map(|c| match c {
@@ -33,6 +40,9 @@ fn generate_temp_password(full_name: &str) -> String {
     format!("{}{}", words[0], words[words.len() - 1])
 }
 
+// FUNÇÃO DE AUTORIZAÇÃO: Valida se o usuário logado é um "Master"
+// *Pitfall*: Nunca confie apenas no que está no JWT. É importante ir ao banco
+// validar se o usuário ainda existe, está ativo e possui a flag 'is_master' = 1.
 async fn check_master(claims: &Claims, state: &AppState) -> Result<AdminRecord, (StatusCode, Json<ErrorResponse>)> {
     let admin = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_active, is_master, is_first_login, pref_show_inactive, pref_show_others, pref_sort_by, email, failed_attempts, is_locked FROM admins WHERE id = ?")
         .bind(claims.sub)
@@ -69,6 +79,9 @@ pub async fn get_admins(
     Ok(Json(admins))
 }
 
+// HANDLER: Criar Administrador
+// Recebe um JSON do frontend, valida permissões e gera uma senha provisória.
+// O 'password' é hasheado via bcrypt antes do INSERT.
 pub async fn create_admin(
     claims: Claims,
     State(state): State<AppState>,

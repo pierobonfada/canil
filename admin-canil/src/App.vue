@@ -22,6 +22,5 @@ body {
 * {
   box-sizing: border-box;
   overflow-wrap: break-word;
-  word-break: break-word;
 }
 </style>

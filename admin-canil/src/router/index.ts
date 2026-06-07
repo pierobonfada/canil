@@ -1,11 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 // ==========================================
-// 🗺️ O MAPA DO PAINEL (ROUTER) E O SEGURANÇA DA PORTA
+// ROTEAMENTO E PROTEÇÃO DE ROTAS (ROUTE GUARDS)
 // ==========================================
-// Aqui a gente define todas as telas que existem no painel de controle.
-// Mas não é só isso! Temos um "segurança" (o `router.beforeEach`) que
-// barrar intrusos que tentam acessar a URL do Dashboard sem estarem logados.
+// Define as rotas do painel. Rotas protegidas possuem um objeto 'meta' 
+// indicando os níveis de permissão necessários (ex: requiresAuth, requiresMaster).
+// Usamos o 'router.beforeEach' para interceptar todas as mudanças de página
+// e bloquear acessos indevidos antes mesmo do componente ser carregado.
 
 import LoginView from '../views/LoginView.vue'
 import DashboardView from '../views/DashboardView.vue'
@@ -30,11 +31,15 @@ const router = createRouter({
   ]
 })
 
+// ROUTE GUARD GLOBAL
+// Esta função é chamada toda vez que o usuário tenta mudar de URL.
 router.beforeEach((to, from, next) => {
+  // Verifica se existe um token salvo (o que indica que o usuário logou)
   const isAuthenticated = !!localStorage.getItem('authToken')
+  // Verifica se o usuário tem privilégios Master
   const isMaster = localStorage.getItem('isMaster') === '1'
   
-  if (to.meta.requiresAuth && !isAuthenticated) {
+  // Se a rota exige login e o usuário não está logado, manda pro login '/'
     next('/')
   } else if (to.meta.requiresMaster && !isMaster) {
     next('/dashboard')

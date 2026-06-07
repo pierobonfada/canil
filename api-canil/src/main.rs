@@ -1,13 +1,14 @@
 // ==========================================
-// 🚀 INÍCIO DO PROJETO: As engrenagens começam a girar aqui!
+// PONTO DE ENTRADA: Configuração e inicialização do servidor Axum
 // ==========================================
-// Aqui importamos as "pastinhas" (módulos) do nosso projeto. Cada uma tem uma responsabilidade:
-pub mod auth;               // Autenticação e chaves de acesso
-pub mod analytics_handlers; // Nossa central de espião 🕵️ (rastreia visitantes e estatísticas)
-pub mod admin_handlers;     // Gerenciamento dos chefes (administradores)
-pub mod handlers;           // O coração do sistema (cadastros e adoções de animais)
-pub mod image_utils;        // Edição mágica de imagens (corta e salva as fotos dos pets)
-pub mod models;             // Como as coisas são estruturadas no nosso banco de dados
+// Aqui importamos os módulos do nosso projeto. O Rust exige que declaremos 
+// explicitamente os módulos que compõem o crate (pacote) usando 'pub mod':
+pub mod auth;               // Funções para geração e validação de tokens JWT (segurança).
+pub mod analytics_handlers; // Controladores (handlers) para rotas de estatísticas e métricas de acesso.
+pub mod admin_handlers;     // Controladores para gestão de administradores (CRUD e rotas protegidas).
+pub mod handlers;           // Controladores principais para gestão de animais e login.
+pub mod image_utils;        // Utilitários para redimensionamento e salvamento assíncrono de imagens.
+pub mod models;             // Estruturas de dados (structs) que representam as tabelas do banco e payloads.
 
 use axum::{
     routing::{get, patch, post, put},
@@ -29,11 +30,12 @@ use crate::analytics_handlers::{
 };
 
 #[tokio::main]
-// 🌟 FUNÇÃO PRINCIPAL: É aqui que a mágica do servidor começa!
-// O "tokio" transforma nosso programa num polvo, permitindo atender várias 
-// pessoas ao mesmo tempo (assíncrono) sem deixar ninguém esperando na fila.
+// FUNÇÃO PRINCIPAL
+// A macro #[tokio::main] transforma a função main tradicional (síncrona) 
+// em uma função assíncrona executada por um runtime (o Tokio). Isso é essencial
+// no Rust para lidar com múltiplas requisições HTTP de forma concorrente sem bloquear a thread.
 async fn main() {
-    // 🔐 Carregando nossos segredinhos de estado (como a senha do JWT e URL do banco)
+    // Carrega variáveis do arquivo .env para o ambiente local.
     dotenvy::dotenv().ok();
 
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL não configurada no .env");
@@ -42,35 +44,40 @@ async fn main() {
         panic!("ERRO: Variável de ambiente JWT_SECRET não encontrada no arquivo .env!");
     }
 
-    // 🗄️ Conectando com o nosso banco de dados SQLite!
-    // A gente usa o modo WAL (Write-Ahead Logging) pra deixar as gravações bem rapidinhas.
+    // Conexão com o banco de dados SQLite.
+    // Usamos o modo WAL (Write-Ahead Logging) que melhora significativamente a performance 
+    // de leitura e escrita simultânea no SQLite.
     let connection_options = SqliteConnectOptions::from_str(&db_url)
         .expect("URL do banco inválida")
         .create_if_missing(true)
         .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal);
 
-    // Cria uma "piscina" (pool) de conexões pra não precisarmos abrir o banco toda hora.
+    // Cria um 'Pool' de conexões. O pool gerencia e reaproveita conexões ao banco, 
+    // evitando a sobrecarga de abrir e fechar a conexão a cada query.
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
         .connect_with(connection_options)
         .await
         .expect("Falha ao conectar no SQLite");
 
-    // Criamos a pasta onde as carinhas felizes dos pets vão morar
+    // Garante que o diretório de uploads de imagens exista antes do servidor subir.
     std::fs::create_dir_all("uploads").expect("Falha ao criar diretório de uploads");
     
-    // Constrói as tabelas do banco de dados (se for a primeira vez rodando)
+    // Inicializa as tabelas do banco de dados (migrations simples embutidas).
     init_db(&pool).await;
 
-    // Estado global da nossa aplicação. Todo mundo que precisar do banco, vai pegar daqui!
+    // Estado da aplicação. O Axum permite compartilhar este 'state' de forma thread-safe 
+    // entre todas as rotas (handlers). Aqui passamos nosso pool de banco de dados.
     let state = models::AppState { pool };
     
-    // CORS: O porteiro amigável do nosso servidor. 
-    // Ele deixa qualquer site falar com a nossa API (Any).
+    // Configuração de CORS (Cross-Origin Resource Sharing).
+    // Permite que os frontends (Site e Painel Admin) que rodam em portas/domínios diferentes
+    // consumam a API. Em produção, você deve restringir 'Any' para os domínios específicos.
     let cors = CorsLayer::new().allow_origin(Any).allow_headers(Any).allow_methods(Any);
 
-    // 🌐 Criando nosso servidor WEB e definindo as rotas!
-    // Pense nas rotas como corredores de uma casa. Dependendo de qual porta você bate, a gente responde de um jeito.
+    // Construção das rotas (Router).
+    // O Axum mapeia caminhos da URL para funções (handlers). 
+    // 'nest_service' serve arquivos estáticos, enquanto 'route' atrela endpoints a verbos HTTP.
     let app = Router::new()
         .nest_service("/uploads", ServeDir::new("uploads"))
                 .route("/api/auth/login", post(login_handler))
@@ -93,17 +100,18 @@ async fn main() {
         .layer(cors)
         .with_state(state);
 
-    // Prepara o servidor pra escutar na porta 8000
+    // Define o endereço em que o servidor irá escutar (todas as interfaces na porta 8000).
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
     println!("Servidor rodando em http://0.0.0.0:8000");
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     
-    // E... Fogo! 🔥 Coloca o servidor pra rodar de verdade.
+    // Inicia o servidor recebendo conexões na porta vinculada.
     axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await.unwrap();
 }
 
-// 🏗️ CONSTRUTOR DE BANCO DE DADOS
-// Essa função é tipo o engenheiro civil do sistema. Se as tabelas não existem, ela vai lá e cria!
+// INICIALIZAÇÃO DO BANCO
+// Cria a estrutura SQL necessária se as tabelas não existirem. Em projetos maiores,
+// é recomendado usar ferramentas de 'migrations' do próprio SQLx.
 async fn init_db(pool: &sqlx::SqlitePool) {
     let schema = r#"
         CREATE TABLE IF NOT EXISTS admins (
@@ -213,7 +221,9 @@ async fn init_db(pool: &sqlx::SqlitePool) {
 
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM admins").fetch_one(pool).await.unwrap_or(0);
     if count == 0 {
-        // Bem-vindo ao Canil! Como a casa está vazia, vamos criar a chave mestra pra você.
+    // Criação do administrador inicial (seed) caso o banco esteja completamente vazio.
+    // Usamos bcrypt para hashear a senha antes de salvar no banco de dados. Isso é vital!
+    // *Pitfall*: Nunca salve senhas em texto puro. Sempre use um algoritmo forte com salt (como bcrypt ou argon2).
         let default_password = bcrypt::hash("master", bcrypt::DEFAULT_COST).unwrap();
         sqlx::query("INSERT INTO admins (name, email, phone, password, is_first_login, is_master) VALUES (?, ?, ?, ?, 1, 1)")
             .bind("Administrador principal do sistema")

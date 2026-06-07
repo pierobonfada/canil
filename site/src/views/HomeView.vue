@@ -1,9 +1,9 @@
 <!-- ========================================== -->
-<!-- 🏡 TELA PRINCIPAL: A Vitrine de Adoções -->
+<!-- TELA PRINCIPAL: COMPONENTE HOME -->
 <!-- ========================================== -->
-<!-- Bem-vindo à Home! É aqui que a mágica acontece. O visitante vê 
-um banner chamativo, brinca com os filtros de busca e vai rolando
-a página para ver todos os focinhos até encontrar o amor da sua vida! -->
+<!-- Em Vue (Single File Components), o <template> guarda o HTML. 
+Neste componente, temos um cabeçalho (hero), um painel de filtros reativos 
+(ligados via v-model) e a grade (grid) que itera sobre o array de animais. -->
 <template>
   <div class="home-view">
     <header class="hero">
@@ -163,23 +163,29 @@ a página para ver todos os focinhos até encontrar o amor da sua vida! -->
 
 <script setup lang="ts">
 // ==========================================
-// 🧠 O CÉREBRO DA HOME: A Lógica de Pesquisa e Rolagem Infinita
+// LÓGICA DO COMPONENTE (COMPOSITION API)
 // ==========================================
-// Aqui a gente guarda as escolhas dos filtros, vai lá no servidor buscar os animais
-// e faz a "rolagem infinita" (carregar mais cards quando a tela chega no final).
+// A tag <script setup> é o padrão moderno do Vue 3. 
+// Todo código aqui é executado na inicialização do componente. Variáveis declaradas 
+// no escopo raiz deste script estão automaticamente disponíveis no <template>.
 
 import { ref, reactive, onMounted, onUnmounted } from 'vue';
 import api from '../services/api';
 
-// 📦 Nossas variáveis (estados) que vão mudar na tela
-const animals = ref<any[]>([]); // A lista de animais aparecendo
-const isLoading = ref(false);   // Está carregando agora? (pra mostrar as patinhas rodando)
-const hasMore = ref(true);      // Tem mais bicho no banco de dados?
-const page = ref(1);            // Em qual "página" invisível estamos?
-const limit = 12;               // Quantos animais por vez a gente puxa do servidor
-const loadMoreTrigger = ref<HTMLElement | null>(null); // O pontinho no final da tela pra ativar a rolagem
+// ESTADO REATIVO COM 'REF'
+// 'ref' é usado para dados primitivos ou arrays que serão inteiramente reatribuídos.
+// *Pitfall*: No Javascript, você acessa/altera o valor usando 'animals.value = ...', 
+// mas no HTML do <template> você NÃO precisa usar '.value'.
+const animals = ref<any[]>([]); // Lista de animais renderizada.
+const isLoading = ref(false);   // Controla a exibição do ícone de carregamento.
+const hasMore = ref(true);      // Controla a rolagem infinita (paginação).
+const page = ref(1);            // Número da página atual para requisição.
+const limit = 12;               // Quantidade de registros buscados por vez.
+const loadMoreTrigger = ref<HTMLElement | null>(null); // Referência direta a uma tag HTML (via ref="loadMoreTrigger").
 
-// 🔍 A caixinha de filtros que o usuário preenche
+// ESTADO REATIVO COM 'REACTIVE'
+// 'reactive' é usado para objetos. É ideal para formulários, pois agrupa os campos.
+// Ao contrário do 'ref', você não precisa (nem deve) usar '.value' aqui.
 const filters = reactive({
   name: '',
   species: '',
@@ -191,7 +197,9 @@ const filters = reactive({
   age_category: ''
 });
 
-// 📸 Acha a foto principal do pet (ou põe um fundo cinza se ele for tímido e não tiver foto)
+// COMPUTADOS/FUNÇÕES AUXILIARES
+// Funções chamadas diretamente no template para formatar dados.
+// *Dica*: Se isso fosse custoso para CPU, seria melhor usar computed().
 const getPrimaryPhoto = (animal: any) => {
   if (!animal.photos || animal.photos.length === 0) return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="%23cccccc"/><text x="50%" y="50%" fill="%23000000" text-anchor="middle" dy=".3em">Sem Foto</text></svg>';
   const primary = animal.photos.find((p: any) => p.is_primary);
@@ -200,7 +208,7 @@ const getPrimaryPhoto = (animal: any) => {
   return `${baseUrl}/${path.startsWith('uploads') ? path : 'uploads/' + path}`;
 };
 
-// 🎂 Calcula a idade com base no ano de nascimento
+// Calcula a idade com base no ano de nascimento
 const calculateAge = (birthYear: number) => {
   const currentYear = new Date().getFullYear();
   const age = currentYear - birthYear;
@@ -209,19 +217,20 @@ const calculateAge = (birthYear: number) => {
   return `${age} anos`;
 };
 
-// 👶 É bebê? Pra mostrar aquela tag "Bebê" bonitinha no card
+// Verifica se é filhote (até 1 ano) para renderizar o 'badge' condicionalmente via v-if.
 const isPuppyOrKitten = (birthYear: number) => {
   return (new Date().getFullYear() - birthYear) <= 1;
 };
 
-// ✂️ Corta textos que são muito gigantes (pra descrição não explodir o tamanho do card)
+// Trunca descrições muito longas.
 const truncate = (text: string, length: number) => {
   if (!text) return '';
   return text.length > length ? text.substring(0, length) + '...' : text;
 };
 
-// 🚀 O BUSCADOR DE ANIMAIS (Nossa função mais importante!)
-// Vai lá na API com a prancheta de filtros e traz quem combina com o usuário.
+// BUSCA DE ANIMAIS (COMUNICAÇÃO COM API E PAGINAÇÃO)
+// Esta função monta os parâmetros de busca juntando a 'page' e o objeto 'filters'
+// que está reativamente ligado via 'v-model' no HTML.
 const fetchAnimals = async () => {
   if (isLoading.value || !hasMore.value) return;
   isLoading.value = true;
