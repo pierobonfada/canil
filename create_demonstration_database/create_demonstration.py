@@ -22,7 +22,7 @@ def download_image(url, filename):
             out_file.write(response.read())
         time.sleep(0.5)
 
-def create_animal(url, token, species, name, photo_path):
+def create_animal(url, token, species, name, photo_path, delay):
     print(f"Creating {species}: {name}")
     with open(photo_path, 'rb') as f:
         files = {'photo': (os.path.basename(photo_path), f, 'image/jpeg')}
@@ -49,6 +49,7 @@ def create_animal(url, token, species, name, photo_path):
             print(f"Failed to create {name}: {res.text}")
         else:
             print(f"Success: {name}")
+        time.sleep(delay)
 
 def generate_traffic(url):
     print("Generating simulated traffic for 20+ users...")
@@ -126,6 +127,7 @@ def main():
     parser.add_argument("--populate_animals", action="store_true", help="Cria novos dados de demonstração (acrescenta aos existentes).")
     parser.add_argument("--simulate_traffic", action="store_true", help="Gera tráfego simulado de navegação com a data atual.")
     parser.add_argument("--overflow", action="store_true", help="Cria 150 cachorros e 40 gatos reaproveitando as fotos.")
+    parser.add_argument("--delay", type=float, default=0.5, help="Tempo de espera em segundos entre a criação de animais (default 0.5)")
     
     args = parser.parse_args()
 
@@ -155,7 +157,7 @@ def main():
             photo_path = f"photos/dog_{photo_index}.jpg"
             if i < len(dogs):
                 download_image(f"https://loremflickr.com/400/400/dog?lock={photo_index+10}", photo_path)
-            create_animal(args.url, token, "Cachorro", name, photo_path)
+            create_animal(args.url, token, "Cachorro", name, photo_path, args.delay)
 
         for i in range(num_cats):
             photo_index = i % len(cats)
@@ -163,7 +165,7 @@ def main():
             photo_path = f"photos/cat_{photo_index}.jpg"
             if i < len(cats):
                 download_image(f"https://loremflickr.com/400/400/cat?lock={photo_index+10}", photo_path)
-            create_animal(args.url, token, "Gato", name, photo_path)
+            create_animal(args.url, token, "Gato", name, photo_path, args.delay)
 
     if args.simulate_traffic or args.populate_animals or args.overflow:
         generate_traffic(args.url)
