@@ -79,11 +79,13 @@ async fn main() {
     // Usamos o 'ServeDir' para procurar os arquivos gerados pelo Vite (js, css, imagens).
     // O 'fallback' é essencial para SPAs: se o arquivo não existir (ex: o usuário acessou /sobre),
     // o servidor retorna o 'index.html' e deixa o Vue Router assumir a navegação no navegador.
-    let admin_serve = ServeDir::new("../admin-canil/dist")
-        .fallback(ServeFile::new("../admin-canil/dist/index.html"));
+    let admin_path = env::var("ADMIN_DIST").unwrap_or_else(|_| "../admin-canil/dist".to_string());
+    let admin_html = format!("{}/index.html", admin_path);
+    let admin_serve = ServeDir::new(&admin_path).fallback(ServeFile::new(admin_html));
 
-    let site_serve = ServeDir::new("../site/dist")
-        .fallback(ServeFile::new("../site/dist/index.html"));
+    let site_path = env::var("SITE_DIST").unwrap_or_else(|_| "../site/dist".to_string());
+    let site_html = format!("{}/index.html", site_path);
+    let site_serve = ServeDir::new(&site_path).fallback(ServeFile::new(site_html));
 
     // Construção das rotas (Router).
     // O Axum mapeia caminhos da URL para funções (handlers). 
