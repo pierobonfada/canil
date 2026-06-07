@@ -156,7 +156,7 @@ def main():
             name = dogs[photo_index] + (f" {i//len(dogs)}" if i >= len(dogs) else "")
             photo_path = f"photos/dog_{photo_index}.jpg"
             if i < len(dogs):
-                download_image(f"https://loremflickr.com/400/400/dog?lock={photo_index+10}", photo_path)
+                download_image(f"https://placedog.net/400/400?id={photo_index+1}", photo_path)
             create_animal(args.url, token, "Cachorro", name, photo_path, args.delay)
 
         for i in range(num_cats):
@@ -164,7 +164,7 @@ def main():
             name = cats[photo_index] + (f" {i//len(cats)}" if i >= len(cats) else "")
             photo_path = f"photos/cat_{photo_index}.jpg"
             if i < len(cats):
-                download_image(f"https://loremflickr.com/400/400/cat?lock={photo_index+10}", photo_path)
+                download_image(f"https://placecats.com/400/400?id={photo_index+1}", photo_path)
             create_animal(args.url, token, "Gato", name, photo_path, args.delay)
 
     if args.simulate_traffic or args.populate_animals or args.overflow:
