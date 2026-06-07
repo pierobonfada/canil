@@ -40,6 +40,7 @@ router.beforeEach((to, from, next) => {
   const isMaster = localStorage.getItem('isMaster') === '1'
   
   // Se a rota exige login e o usuário não está logado, manda pro login '/'
+  if (to.meta.requiresAuth && !isAuthenticated) {
     next('/')
   } else if (to.meta.requiresMaster && !isMaster) {
     next('/dashboard')
