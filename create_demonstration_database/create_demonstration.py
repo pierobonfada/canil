@@ -16,8 +16,9 @@ def login(url, email, password):
 
 def create_animal(url, token, species, name, photo_path, delay):
     print(f"Creating {species}: {name}")
-    with open(photo_path, 'rb') as f:
-        files = {'photo': (os.path.basename(photo_path), f, 'image/jpeg')}
+    opened_files = [open(photo_path, 'rb') for _ in range(4)]
+    try:
+        files = [('photo', (f"foto_{i}.jpg", f, 'image/jpeg')) for i, f in enumerate(opened_files)]
         data = {
             'name': name,
             'species': species,
@@ -42,6 +43,9 @@ def create_animal(url, token, species, name, photo_path, delay):
         else:
             print(f"Success: {name}")
         time.sleep(delay)
+    finally:
+        for f in opened_files:
+            f.close()
 
 def generate_traffic(url):
     print("Generating simulated traffic for 20+ users...")
