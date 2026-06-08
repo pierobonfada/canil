@@ -106,7 +106,7 @@ pub async fn change_password(
     headers: axum::http::HeaderMap,
     Json(payload): Json<ChangePasswordRequest>,
 ) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
-    let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()).map(|s| s.to_string()).unwrap_or_else(|| addr.ip().to_string());
+    let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()).map(|s| s.split(',').next().unwrap_or("").trim().to_string()).filter(|s| !s.is_empty()).unwrap_or_else(|| addr.ip().to_string());
     
     let default_password = bcrypt::hash(&payload.new_password, bcrypt::DEFAULT_COST).unwrap();
     sqlx::query("UPDATE admins SET password = ?, is_first_login = 0 WHERE id = ?").bind(default_password).bind(claims.sub).execute(&state.pool).await.unwrap();
@@ -166,7 +166,7 @@ pub async fn create_animal(
     headers: axum::http::HeaderMap,
     mut multipart: Multipart,
 ) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
-    let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()).map(|s| s.to_string()).unwrap_or_else(|| addr.ip().to_string());
+    let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()).map(|s| s.split(',').next().unwrap_or("").trim().to_string()).filter(|s| !s.is_empty()).unwrap_or_else(|| addr.ip().to_string());
     let (mut name, mut species, mut birth_year, mut breed, mut is_vaccinated, mut is_dewormed) = (String::new(), String::new(), 0, String::from("Sem raça definida"), false, false);
     let (mut behavior_dogs, mut behavior_cats, mut behavior_humans, mut independence, mut size, mut coat_color, mut predominant_color, mut coat_length, mut description) = (String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new());
     let mut photos: Vec<String> = Vec::new();
@@ -341,7 +341,7 @@ pub async fn update_animal(
     headers: axum::http::HeaderMap,
     mut multipart: Multipart,
 ) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
-    let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()).map(|s| s.to_string()).unwrap_or_else(|| addr.ip().to_string());
+    let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()).map(|s| s.split(',').next().unwrap_or("").trim().to_string()).filter(|s| !s.is_empty()).unwrap_or_else(|| addr.ip().to_string());
     let (mut name, mut species, mut birth_year, mut breed, mut is_vaccinated, mut is_dewormed) = (String::new(), String::new(), 0, String::from("Sem raça definida"), false, false);
     let (mut behavior_dogs, mut behavior_cats, mut behavior_humans, mut independence, mut size, mut coat_color, mut predominant_color, mut coat_length, mut description) = (String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new());
     let mut photos: Vec<String> = Vec::new();
@@ -469,7 +469,7 @@ pub async fn update_animal_status(
     headers: axum::http::HeaderMap,
     Json(payload): Json<StatusPayload>,
 ) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
-    let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()).map(|s| s.to_string()).unwrap_or_else(|| addr.ip().to_string());
+    let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()).map(|s| s.split(',').next().unwrap_or("").trim().to_string()).filter(|s| !s.is_empty()).unwrap_or_else(|| addr.ip().to_string());
     let admin_name: String = sqlx::query_scalar("SELECT name FROM admins WHERE id = ?").bind(claims.sub).fetch_one(&state.pool).await.unwrap_or_else(|_| "Desconhecido".to_string());
     let animal_name: String = sqlx::query_scalar("SELECT name FROM animals WHERE id = ?").bind(id).fetch_one(&state.pool).await.unwrap_or_else(|_| "Desconhecido".to_string());
     sqlx::query("UPDATE animals SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(payload.is_active).bind(id).execute(&state.pool).await.unwrap();
@@ -486,7 +486,7 @@ pub async fn toggle_tutorship(
     axum::extract::ConnectInfo(addr): axum::extract::ConnectInfo<std::net::SocketAddr>,
     headers: axum::http::HeaderMap,
 ) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
-    let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()).map(|s| s.to_string()).unwrap_or_else(|| addr.ip().to_string());
+    let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()).map(|s| s.split(',').next().unwrap_or("").trim().to_string()).filter(|s| !s.is_empty()).unwrap_or_else(|| addr.ip().to_string());
     let mut tx = state.pool.begin().await.unwrap();
     let is_tutor: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM animal_tutors WHERE animal_id = ? AND admin_id = ?)").bind(id).bind(claims.sub).fetch_one(&mut *tx).await.unwrap_or(false);
 
