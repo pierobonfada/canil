@@ -44,8 +44,9 @@ api.interceptors.response.use(
         // ou é inválido. A ação correta é deslogar o usuário e jogá-lo pra tela de login.
         if (error.response && error.response.status === 401) {
             localStorage.removeItem("authToken");
-            if (window.location.pathname !== "/") {
-                window.location.href = "/";
+            const basePath = import.meta.env.BASE_URL || '/';
+            if (window.location.pathname !== basePath && window.location.pathname !== basePath.replace(/\/$/, '')) {
+                window.location.href = basePath;
             }
         }
         return Promise.reject(error);
