@@ -4,3 +4,6 @@
 **/dist
 **/target
 **/.git
+**/*.db
+**/*.db-shm
+**/*.db-wal
