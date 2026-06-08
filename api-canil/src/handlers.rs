@@ -347,7 +347,6 @@ pub async fn update_animal(
     let mut photos: Vec<String> = Vec::new();
     let mut diseases: Vec<String> = Vec::new();
     let mut active_photos: Vec<String> = Vec::new();
-    let mut removed_photos: Vec<String> = Vec::new();
     let mut primary_photo = String::new();
     let mut total_bytes: usize = 0;
 
@@ -375,10 +374,6 @@ pub async fn update_animal(
                         if let Ok(Ok(path)) = tokio::task::spawn_blocking(move || crate::image_utils::process_and_save_image(bytes_data)).await { 
                             photos.push(path); 
                         } 
-                    }
-                } else if field_name == "removed_photos" {
-                    if let Ok(text) = field.text().await {
-                        if !text.trim().is_empty() { removed_photos = text.split(',').map(|s| s.trim().to_string()).collect(); }
                     }
                 } else if field_name == "primary_photo" {
                     if let Ok(text) = field.text().await {
