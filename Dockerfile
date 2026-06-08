@@ -31,7 +31,7 @@ RUN sqlite3 canil.db < schema.sql
 # Define a URL do banco durante o build para as macros do SQLx compilarem corretamente
 ENV DATABASE_URL="sqlite:///app/api-canil/canil.db"
 # Compila o projeto em modo Release (otimizado para produção)
-RUN cargo build --release
+RUN cargo build --release --jobs $(nproc)
 
 # ==========================================
 # STAGE 4: Imagem Final de Execução (Runtime)

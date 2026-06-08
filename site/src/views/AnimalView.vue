@@ -258,7 +258,12 @@ onMounted(() => {
   border-radius: 24px;
   overflow: hidden;
   aspect-ratio: 4/5;
-  margin-bottom: 1rem;
+  max-height: 500px;
+  margin: 0 auto 1rem auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
 .main-photo img {
@@ -270,7 +275,8 @@ onMounted(() => {
 .thumbnails {
   display: flex;
   gap: 1rem;
-  overflow-x: auto;
+  flex-wrap: wrap;
+  justify-content: center;
   padding-bottom: 0.5rem;
 }
 

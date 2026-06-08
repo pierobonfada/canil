@@ -173,29 +173,55 @@ pub async fn create_animal(
     let mut diseases: Vec<String> = Vec::new();
     let mut total_bytes: usize = 0;
 
-    while let Ok(Some(mut field)) = multipart.next_field().await {
-        let field_name = field.name().unwrap_or("").to_string();
-        if field_name == "photo" {
-            let mut data = Vec::new();
-            while let Ok(Some(chunk)) = field.chunk().await {
-                data.extend_from_slice(&chunk);
-            }
-            if !data.is_empty() { 
-                total_bytes += data.len();
-                let bytes_data = axum::body::Bytes::from(data);
-                if let Ok(Ok(path)) = tokio::task::spawn_blocking(move || crate::image_utils::process_and_save_image(bytes_data)).await { 
-                    photos.push(path); 
-                } 
-            }
-        } else if let Ok(text) = field.text().await {
-            match field_name.as_str() {
-                "name" => name = text, "species" => species = text, "birth_year" => birth_year = text.parse().unwrap_or(0),
-                "breed" => if !text.trim().is_empty() { breed = text }, "is_vaccinated" => is_vaccinated = text == "true",
-                "is_dewormed" => is_dewormed = text == "true", "behavior_dogs" => behavior_dogs = text,
-                "behavior_cats" => behavior_cats = text, "behavior_humans" => behavior_humans = text, "independence" => independence = text, "size" => size = text,
-                "coat_color" => coat_color = text, "predominant_color" => predominant_color = text, "coat_length" => coat_length = text, "description" => description = text,
-                "diseases" => { if !text.trim().is_empty() { diseases = text.split(',').map(|s| s.trim().to_string()).collect(); } }
-                _ => {}
+    loop {
+        match multipart.next_field().await {
+            Ok(Some(mut field)) => {
+                let field_name = field.name().unwrap_or("").to_string();
+                if field_name == "photo" {
+                    let mut data = Vec::new();
+                    let mut chunk_error = false;
+                    loop {
+                        match field.chunk().await {
+                            Ok(Some(chunk)) => data.extend_from_slice(&chunk),
+                            Ok(None) => break,
+                            Err(_) => { chunk_error = true; break; }
+                        }
+                    }
+                    if chunk_error {
+                        for path in &photos { let _ = std::fs::remove_file(path); }
+                        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Conexão interrompida no envio da foto".to_string(), remaining_attempts: None })));
+                    }
+                    if !data.is_empty() { 
+                        total_bytes += data.len();
+                        let bytes_data = axum::body::Bytes::from(data);
+                        if let Ok(Ok(path)) = tokio::task::spawn_blocking(move || crate::image_utils::process_and_save_image(bytes_data)).await { 
+                            photos.push(path); 
+                        } 
+                    }
+                } else {
+                    match field.text().await {
+                        Ok(text) => {
+                            match field_name.as_str() {
+                                "name" => name = text, "species" => species = text, "birth_year" => birth_year = text.parse().unwrap_or(0),
+                                "breed" => if !text.trim().is_empty() { breed = text }, "is_vaccinated" => is_vaccinated = text == "true",
+                                "is_dewormed" => is_dewormed = text == "true", "behavior_dogs" => behavior_dogs = text,
+                                "behavior_cats" => behavior_cats = text, "behavior_humans" => behavior_humans = text, "independence" => independence = text, "size" => size = text,
+                                "coat_color" => coat_color = text, "predominant_color" => predominant_color = text, "coat_length" => coat_length = text, "description" => description = text,
+                                "diseases" => { if !text.trim().is_empty() { diseases = text.split(',').map(|s| s.trim().to_string()).collect(); } }
+                                _ => {}
+                            }
+                        },
+                        Err(_) => {
+                            for path in &photos { let _ = std::fs::remove_file(path); }
+                            return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Conexão interrompida no envio de texto".to_string(), remaining_attempts: None })));
+                        }
+                    }
+                }
+            },
+            Ok(None) => break,
+            Err(_) => {
+                for path in &photos { let _ = std::fs::remove_file(path); }
+                return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Conexão interrompida durante o envio".to_string(), remaining_attempts: None })));
             }
         }
     }
@@ -321,36 +347,68 @@ pub async fn update_animal(
     let mut photos: Vec<String> = Vec::new();
     let mut diseases: Vec<String> = Vec::new();
     let mut active_photos: Vec<String> = Vec::new();
-    let mut inactive_photos: Vec<String> = Vec::new();
+    let mut removed_photos: Vec<String> = Vec::new();
     let mut primary_photo = String::new();
     let mut total_bytes: usize = 0;
 
-    while let Ok(Some(mut field)) = multipart.next_field().await {
-        let field_name = field.name().unwrap_or("").to_string();
-        if field_name == "photo" {
-            let mut data = Vec::new();
-            while let Ok(Some(chunk)) = field.chunk().await {
-                data.extend_from_slice(&chunk);
-            }
-            if !data.is_empty() { 
-                total_bytes += data.len();
-                let bytes_data = axum::body::Bytes::from(data);
-                if let Ok(Ok(path)) = tokio::task::spawn_blocking(move || crate::image_utils::process_and_save_image(bytes_data)).await { 
-                    photos.push(path); 
-                } 
-            }
-        } else if let Ok(text) = field.text().await {
-            match field_name.as_str() {
-                "active_photos" => active_photos.push(text),
-                "inactive_photos" => inactive_photos.push(text),
-                "primary_photo" => primary_photo = text,
-                "name" => name = text, "species" => species = text, "birth_year" => birth_year = text.parse().unwrap_or(0),
-                "breed" => if !text.trim().is_empty() { breed = text }, "is_vaccinated" => is_vaccinated = text == "true",
-                "is_dewormed" => is_dewormed = text == "true", "behavior_dogs" => behavior_dogs = text,
-                "behavior_cats" => behavior_cats = text, "behavior_humans" => behavior_humans = text, "independence" => independence = text, "size" => size = text,
-                "coat_color" => coat_color = text, "predominant_color" => predominant_color = text, "coat_length" => coat_length = text, "description" => description = text,
-                "diseases" => { if !text.trim().is_empty() { diseases = text.split(',').map(|s| s.trim().to_string()).collect(); } }
-                _ => {}
+    loop {
+        match multipart.next_field().await {
+            Ok(Some(mut field)) => {
+                let field_name = field.name().unwrap_or("").to_string();
+                if field_name == "photo" {
+                    let mut data = Vec::new();
+                    let mut chunk_error = false;
+                    loop {
+                        match field.chunk().await {
+                            Ok(Some(chunk)) => data.extend_from_slice(&chunk),
+                            Ok(None) => break,
+                            Err(_) => { chunk_error = true; break; }
+                        }
+                    }
+                    if chunk_error {
+                        for path in &photos { let _ = std::fs::remove_file(path); }
+                        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Conexão interrompida no envio da foto".to_string(), remaining_attempts: None })));
+                    }
+                    if !data.is_empty() { 
+                        total_bytes += data.len();
+                        let bytes_data = axum::body::Bytes::from(data);
+                        if let Ok(Ok(path)) = tokio::task::spawn_blocking(move || crate::image_utils::process_and_save_image(bytes_data)).await { 
+                            photos.push(path); 
+                        } 
+                    }
+                } else if field_name == "removed_photos" {
+                    if let Ok(text) = field.text().await {
+                        if !text.trim().is_empty() { removed_photos = text.split(',').map(|s| s.trim().to_string()).collect(); }
+                    }
+                } else if field_name == "primary_photo" {
+                    if let Ok(text) = field.text().await {
+                        primary_photo = text.trim().to_string();
+                    }
+                } else {
+                    match field.text().await {
+                        Ok(text) => {
+                            match field_name.as_str() {
+                                "active_photos" => active_photos.push(text),
+                                "name" => name = text, "species" => species = text, "birth_year" => birth_year = text.parse().unwrap_or(0),
+                                "breed" => if !text.trim().is_empty() { breed = text }, "is_vaccinated" => is_vaccinated = text == "true",
+                                "is_dewormed" => is_dewormed = text == "true", "behavior_dogs" => behavior_dogs = text,
+                                "behavior_cats" => behavior_cats = text, "behavior_humans" => behavior_humans = text, "independence" => independence = text, "size" => size = text,
+                                "coat_color" => coat_color = text, "predominant_color" => predominant_color = text, "coat_length" => coat_length = text, "description" => description = text,
+                                "diseases" => { if !text.trim().is_empty() { diseases = text.split(',').map(|s| s.trim().to_string()).collect(); } }
+                                _ => {}
+                            }
+                        },
+                        Err(_) => {
+                            for path in &photos { let _ = std::fs::remove_file(path); }
+                            return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Conexão interrompida no envio de texto".to_string(), remaining_attempts: None })));
+                        }
+                    }
+                }
+            },
+            Ok(None) => break,
+            Err(_) => {
+                for path in &photos { let _ = std::fs::remove_file(path); }
+                return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Conexão interrompida durante o envio".to_string(), remaining_attempts: None })));
             }
         }
     }
