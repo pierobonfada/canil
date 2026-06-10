@@ -602,13 +602,18 @@ button { padding: 0.8rem; border: none; border-radius: 8px; font-weight: bold; c
   right: 10px;
   top: 50%;
   transform: translateY(-50%);
-  background: none;
+  background: transparent !important;
   border: none;
   cursor: pointer;
-  padding: 0;
+  padding: 0 !important;
+  width: auto !important;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.btn-toggle-password:hover {
+  background: transparent !important;
+  opacity: 0.7;
 }
 .password-hint {
   font-size: 0.8rem;
