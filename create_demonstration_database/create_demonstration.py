@@ -33,7 +33,7 @@ def create_animal(url, token, species, name, photo_path, delay):
             'size': random.choice(['Pequeno', 'Médio', 'Grande']),
             'coat_color': 'Variada',
             'predominant_color': random.choice(['Branco', 'Preto', 'Caramelo', 'Cinza', 'Marrom', 'Tricolor', 'Bicolor', 'Laranja', 'Outra']),
-            'coat_length': 'Curto',
+            'coat_length': random.choice(['Curta', 'Média', 'Longa', 'Sem Pelo']),
             'description': f"Este é {name}, um ótimo {species.lower()} aguardando muito carinho e uma nova casa!"
         }
         headers = {'Authorization': f'Bearer {token}'}
