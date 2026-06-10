@@ -12,9 +12,10 @@
             id="new_password" 
             v-model="newPassword" 
             required 
-            placeholder="Digite a nova senha"
-            minlength="6"
+            placeholder="Digite a nova senha (mínimo 10 caracteres)"
+            minlength="10"
           />
+          <PasswordStrength :password="newPassword" />
         </div>
         
         <div class="input-group">
@@ -25,7 +26,7 @@
             v-model="confirmPassword" 
             required 
             placeholder="Repita a nova senha"
-            minlength="6"
+            minlength="10"
           />
         </div>
 
@@ -49,6 +50,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
+import PasswordStrength from '../components/PasswordStrength.vue'
 
 const router = useRouter()
 const newPassword = ref('')
@@ -58,6 +60,18 @@ const successMessage = ref('')
 const isLoading = ref(false)
 
 const handleChangePassword = async () => {
+  if (newPassword.value.length < 10) {
+    errorMessage.value = 'A senha deve ter pelo menos 10 caracteres.'
+    return
+  }
+  if (!/\d/.test(newPassword.value)) {
+    errorMessage.value = 'A senha deve conter pelo menos um número.'
+    return
+  }
+  if (!/[^a-zA-Z0-9]/.test(newPassword.value)) {
+    errorMessage.value = 'A senha deve conter pelo menos um caractere especial.'
+    return
+  }
   if (newPassword.value !== confirmPassword.value) {
     errorMessage.value = 'As senhas não coincidem.'
     return

@@ -24,7 +24,7 @@ use crate::admin_handlers::{create_admin, get_admins, get_system_logs, update_ad
 use crate::handlers::{
     change_password, create_animal, get_animal, get_animals, get_dashboard, login_handler,
     toggle_tutorship, update_animal, update_animal_status, update_preferences,
-    get_public_animals, get_public_animal,
+    get_public_animals, get_public_animal, update_self,
 };
 use crate::analytics_handlers::{
     register_event, get_dashboard_stats, get_sessions, get_session_details
@@ -113,6 +113,7 @@ async fn async_main() {
         .route("/api/logs", get(get_system_logs))
         .route("/api/auth/password", patch(change_password))
         .route("/api/auth/preferences", patch(update_preferences))
+        .route("/api/auth/me", put(update_self))
         .route("/api/dashboard", get(get_dashboard))
         .route("/api/animais", get(get_animals).post(create_animal))
         .route("/api/animais/:id", get(get_animal).put(update_animal))

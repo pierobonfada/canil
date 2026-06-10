@@ -33,7 +33,7 @@ pub async fn login_handler(
     let ip = addr.ip().to_string();
     let user_agent = headers.get(axum::http::header::USER_AGENT).and_then(|v| v.to_str().ok()).unwrap_or("Desconhecido").to_string();
     
-    let admin_opt = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_active, is_master, is_first_login, pref_show_inactive, pref_show_others, pref_sort_by, email, failed_attempts, is_locked FROM admins WHERE email = ?").bind(&payload.email).fetch_optional(&state.pool).await.map_err(|_| {(StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro no banco".to_string(), remaining_attempts: None }))})?;
+    let admin_opt = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_active, is_master, is_first_login, email, name, phone, pref_show_inactive, pref_show_others, pref_sort_by, failed_attempts, is_locked FROM admins WHERE email = ?").bind(&payload.email).fetch_optional(&state.pool).await.map_err(|_| {(StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro no banco".to_string(), remaining_attempts: None }))})?;
     
     if let Some(admin) = &admin_opt {
         if admin.is_locked {
@@ -99,6 +99,19 @@ pub async fn login_handler(
     Ok(Json(LoginResponse { token, is_master, is_first_login: is_first, pref_show_inactive: pref_inactive, pref_show_others: pref_others, pref_sort_by: pref_sort }))
 }
 
+fn validate_password(pw: &str) -> Result<(), String> {
+    if pw.len() < 10 {
+        return Err("A senha deve ter pelo menos 10 caracteres.".to_string());
+    }
+    if !pw.chars().any(|c| c.is_ascii_digit()) {
+        return Err("A senha deve conter pelo menos um número.".to_string());
+    }
+    if !pw.chars().any(|c| !c.is_alphanumeric()) {
+        return Err("A senha deve conter pelo menos um caractere especial.".to_string());
+    }
+    Ok(())
+}
+
 pub async fn change_password(
     claims: Claims,
     State(state): State<AppState>,
@@ -108,9 +121,15 @@ pub async fn change_password(
 ) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
     let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()).map(|s| s.split(',').next().unwrap_or("").trim().to_string()).filter(|s| !s.is_empty()).unwrap_or_else(|| addr.ip().to_string());
     
+    if let Err(msg) = validate_password(&payload.new_password) {
+        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: msg, remaining_attempts: None })));
+    }
+
+    let admin_name: String = sqlx::query_scalar("SELECT name FROM admins WHERE id = ?").bind(claims.sub).fetch_one(&state.pool).await.unwrap_or_else(|_| "Desconhecido".to_string());
     let default_password = bcrypt::hash(&payload.new_password, bcrypt::DEFAULT_COST).unwrap();
     sqlx::query("UPDATE admins SET password = ?, is_first_login = 0 WHERE id = ?").bind(default_password).bind(claims.sub).execute(&state.pool).await.unwrap();
-    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, remote_ip, animal_id) VALUES (?, ?, 'WARNING', ?, NULL)").bind(claims.sub).bind("Redefiniu a senha").bind(&ip).execute(&state.pool).await.unwrap();
+    let action_msg = format!("\"{}\" redefiniu sua senha", admin_name);
+    sqlx::query("INSERT INTO action_logs (admin_id, action, severity, remote_ip, animal_id) VALUES (?, ?, 'WARNING', ?, NULL)").bind(claims.sub).bind(&action_msg).bind(&ip).execute(&state.pool).await.unwrap();
     Ok(Json("Senha updated!".to_string()))
 }
 
@@ -129,6 +148,37 @@ pub async fn update_preferences(
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro ao salvar preferências".to_string(), remaining_attempts: None })))?;
     Ok(Json("Preferências salvas".to_string()))
 }
+
+pub async fn update_self(
+    claims: Claims,
+    State(state): State<AppState>,
+    Json(payload): Json<crate::models::UpdateSelfRequest>,
+) -> Result<Json<String>, (StatusCode, Json<ErrorResponse>)> {
+    
+    if let Some(pw) = &payload.password {
+        if !pw.is_empty() {
+            if let Err(msg) = validate_password(pw) {
+                return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: msg, remaining_attempts: None })));
+            }
+            let hashed = bcrypt::hash(pw, bcrypt::DEFAULT_COST).unwrap();
+            sqlx::query("UPDATE admins SET name = ?, email = ?, phone = ?, password = ? WHERE id = ?")
+                .bind(&payload.name).bind(&payload.email).bind(&payload.phone).bind(hashed).bind(claims.sub)
+                .execute(&state.pool).await
+                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro ao salvar os dados do perfil".to_string(), remaining_attempts: None })))?;
+            return Ok(Json("Perfil e senha atualizados".to_string()));
+        }
+    }
+
+    sqlx::query("UPDATE admins SET name = ?, email = ?, phone = ? WHERE id = ?")
+        .bind(payload.name)
+        .bind(payload.email)
+        .bind(payload.phone)
+        .bind(claims.sub)
+        .execute(&state.pool)
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Erro ao salvar os dados do perfil".to_string(), remaining_attempts: None })))?;
+    Ok(Json("Perfil atualizado".to_string()))
+}
 // HANDLER PROTEGIDO: Resumo do Admin
 // Note o extrator 'claims: Claims'. Este é um extractor customizado (implementado em auth.rs).
 // Se o token JWT não for enviado ou for inválido, o Axum nem chega a executar esta função!
@@ -136,7 +186,7 @@ pub async fn get_dashboard(
     claims: Claims,
     State(state): State<AppState>,
 ) -> Result<Json<DashboardResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let admin = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_active, is_master, is_first_login, pref_show_inactive, pref_show_others, pref_sort_by, email, failed_attempts, is_locked FROM admins WHERE id = ?")
+    let admin = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_active, is_master, is_first_login, email, name, phone, pref_show_inactive, pref_show_others, pref_sort_by, failed_attempts, is_locked FROM admins WHERE id = ?")
         .bind(claims.sub)
         .fetch_optional(&state.pool)
         .await
@@ -152,6 +202,9 @@ pub async fn get_dashboard(
             pref_show_inactive: a.pref_show_inactive,
             pref_show_others: a.pref_show_others,
             pref_sort_by: a.pref_sort_by,
+            name: a.name,
+            email: a.email,
+            phone: a.phone,
         })),
         None => Err((StatusCode::UNAUTHORIZED, Json(ErrorResponse { error: "Usuário inválido".to_string(), remaining_attempts: None })))
     }

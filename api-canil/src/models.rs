@@ -59,6 +59,8 @@ pub struct AdminRecord {
     pub is_master: bool,
     pub is_first_login: bool,
     pub email: String,
+    pub name: String,
+    pub phone: String,
     pub pref_show_inactive: bool,
     pub pref_show_others: bool,
     pub pref_sort_by: String,
@@ -103,6 +105,17 @@ pub struct DashboardResponse {
     pub pref_show_inactive: bool,
     pub pref_show_others: bool,
     pub pref_sort_by: String,
+    pub name: String,
+    pub email: String,
+    pub phone: String,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateSelfRequest {
+    pub name: String,
+    pub email: String,
+    pub phone: String,
+    pub password: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, Clone)]

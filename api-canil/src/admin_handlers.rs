@@ -44,7 +44,7 @@ fn generate_temp_password(full_name: &str) -> String {
 // *Pitfall*: Nunca confie apenas no que está no JWT. É importante ir ao banco
 // validar se o usuário ainda existe, está ativo e possui a flag 'is_master' = 1.
 async fn check_master(claims: &Claims, state: &AppState) -> Result<AdminRecord, (StatusCode, Json<ErrorResponse>)> {
-    let admin = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_active, is_master, is_first_login, pref_show_inactive, pref_show_others, pref_sort_by, email, failed_attempts, is_locked FROM admins WHERE id = ?")
+    let admin = sqlx::query_as::<_, AdminRecord>("SELECT id, password, is_active, is_master, is_first_login, email, name, phone, pref_show_inactive, pref_show_others, pref_sort_by, failed_attempts, is_locked FROM admins WHERE id = ?")
         .bind(claims.sub)
         .fetch_optional(&state.pool)
         .await

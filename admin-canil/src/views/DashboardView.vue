@@ -7,7 +7,18 @@ permissão de Master ('v-if="isMaster"'). -->
 <template>
   <div class="dashboard-container">
     <header class="top-bar">
-      <h2>🐾 Painel do Canil</h2>
+      <div class="header-left">
+        <h2>🐾 Painel do Canil</h2>
+        
+        <div v-if="adminInfo" class="admin-profile" @click="openEditProfile" title="Editar Perfil">
+          <div class="admin-details">
+            <span class="admin-name">{{ adminInfo.name }}</span>
+            <span class="admin-contact">{{ adminInfo.email }} • {{ formatPhone(adminInfo.phone) }}</span>
+          </div>
+          <span class="edit-icon">✏️</span>
+        </div>
+      </div>
+
       <div class="header-actions">
         <button @click="router.push('/analytics')" class="btn-master" style="background: var(--primary-color);">📈 Estatísticas</button>
         <button v-if="isMaster" @click="router.push('/admins')" class="btn-master">👑 Admins</button>
@@ -107,6 +118,40 @@ permissão de Master ('v-if="isMaster"'). -->
       </div>
 
     </main>
+
+    <!-- Modal de Edição de Perfil -->
+    <div v-if="showEditProfile" class="modal-overlay">
+      <div class="modal-content card">
+        <h3>✏️ Editar Meu Perfil</h3>
+        <form @submit.prevent="updateProfile" class="form-column">
+          <label>
+            Nome:
+            <input v-model="editProfileData.name" required />
+          </label>
+          <label>
+            E-mail:
+            <input v-model="editProfileData.email" type="email" required />
+          </label>
+          <label>
+            WhatsApp (Telefone):
+            <input :value="editProfileData.phone" @input="(e) => editProfileData.phone = formatPhone((e.target as HTMLInputElement).value)" required />
+          </label>
+          <label>
+            Nova Senha:
+            <input type="password" v-model="editProfileData.password" placeholder="Manter inalterada" />
+            <PasswordStrength v-if="editProfileData.password.length > 0" :password="editProfileData.password" />
+          </label>
+          <label v-if="editProfileData.password.length > 0">
+            Confirme a Nova Senha:
+            <input type="password" v-model="editProfileData.confirmPassword" placeholder="Confirme a nova senha" required />
+          </label>
+          <div class="modal-actions">
+            <button type="button" @click="showEditProfile = false" class="btn-back">Cancelar</button>
+            <button type="submit" class="btn-submit">Salvar Alterações</button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -117,11 +162,16 @@ permissão de Master ('v-if="isMaster"'). -->
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
+import PasswordStrength from '../components/PasswordStrength.vue'
 
 const router = useRouter()
 const animals = ref<any[]>([])
 const isLoading = ref(true)
 const isMaster = ref(localStorage.getItem('isMaster') === '1')
+
+const adminInfo = ref<any>(null)
+const showEditProfile = ref(false)
+const editProfileData = ref({ name: '', email: '', phone: '', password: '', confirmPassword: '' })
 
 const searchQuery = ref('')
 const showInactive = ref(false)
@@ -157,6 +207,68 @@ const getStackedPhotos = (animal: any) => {
   return [...active.slice(offset), ...active.slice(0, offset)];
 }
 
+const formatPhone = (val: string) => {
+  if (!val) return ''
+  let num = val.replace(/\D/g, '')
+  if (num.length > 11) num = num.substring(0, 11)
+  
+  if (num.length === 0) return ''
+  if (num.length <= 2) return `(${num}`
+  if (num.length <= 3) return `(${num.substring(0, 2)}) ${num.substring(2)}`
+  if (num.length <= 7) return `(${num.substring(0, 2)}) ${num.substring(2, 3)} ${num.substring(3)}`
+  return `(${num.substring(0, 2)}) ${num.substring(2, 3)} ${num.substring(3, 7)} ${num.substring(7)}`
+}
+
+const openEditProfile = () => {
+  if (!adminInfo.value) return;
+  editProfileData.value = {
+    name: adminInfo.value.name,
+    email: adminInfo.value.email,
+    phone: formatPhone(adminInfo.value.phone),
+    password: '',
+    confirmPassword: ''
+  }
+  showEditProfile.value = true
+}
+
+const updateProfile = async () => {
+  if (editProfileData.value.password.length > 0) {
+    if (editProfileData.value.password.length < 10) {
+      alert('A nova senha deve ter pelo menos 10 caracteres.'); return;
+    }
+    if (!/\d/.test(editProfileData.value.password)) {
+      alert('A nova senha deve conter pelo menos um número.'); return;
+    }
+    if (!/[^a-zA-Z0-9]/.test(editProfileData.value.password)) {
+      alert('A nova senha deve conter pelo menos um caractere especial.'); return;
+    }
+    if (editProfileData.value.password !== editProfileData.value.confirmPassword) {
+      alert('A confirmação da nova senha não coincide.'); return;
+    }
+  }
+
+  try {
+    const payload: any = {
+      name: editProfileData.value.name,
+      email: editProfileData.value.email,
+      phone: editProfileData.value.phone.replace(/\D/g, '')
+    }
+    if (editProfileData.value.password) {
+      payload.password = editProfileData.value.password
+    }
+
+    await api.put('/auth/me', payload)
+    showEditProfile.value = false
+    
+    // Refresh admin info
+    const resPref = await api.get('/dashboard')
+    adminInfo.value = resPref.data
+    alert('Perfil atualizado com sucesso!')
+  } catch (error: any) {
+    alert(error.response?.data?.error || "Erro ao atualizar perfil")
+  }
+}
+
 let pollingInterval: any = null;
 
 // CICLO DE VIDA: onMounted
@@ -167,6 +279,7 @@ let pollingInterval: any = null;
 onMounted(async () => {
   try {
     const resPref = await api.get('/dashboard')
+    adminInfo.value = resPref.data
     showInactive.value = resPref.data.pref_show_inactive
     showOthers.value = resPref.data.pref_show_others
     sortBy.value = resPref.data.pref_sort_by || 'updated_desc'
@@ -281,7 +394,56 @@ const handleLogout = () => {
   padding: 1rem 2rem; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
   position: sticky; top: 0; z-index: 100;
 }
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
 .top-bar h2 { margin: 0; font-size: 1.4rem; font-weight: 600; }
+
+.admin-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.admin-profile:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.admin-details {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.admin-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.admin-contact {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.edit-icon {
+  font-size: 1rem;
+  opacity: 0.7;
+}
+
+.admin-profile:hover .edit-icon {
+  opacity: 1;
+}
 
 .header-actions {
   display: flex;
@@ -388,6 +550,8 @@ button { padding: 0.8rem; border: none; border-radius: 8px; font-weight: bold; c
 .btn-restore:hover { background: #16a34a; }
 
 @media (max-width: 768px) {
+  .header-left { flex-direction: column; gap: 0.5rem; }
+  .admin-profile { width: 100%; justify-content: center; }
   .top-bar { padding: 1rem; flex-direction: column; gap: 1rem; text-align: center; }
   .top-bar h2 { font-size: 1.3rem; }
   .header-actions { flex-wrap: wrap; justify-content: center; }
@@ -397,4 +561,16 @@ button { padding: 0.8rem; border: none; border-radius: 8px; font-weight: bold; c
   .sort-box { border-right: none; padding-right: 0; width: 100%; justify-content: space-between;}
   .content { padding: 0.8rem; }
 }
+
+/* Modal styles */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.modal-content { min-width: 400px; background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+.modal-content h3 { margin-top: 0; color: #1e293b; }
+.form-column { display: flex; flex-direction: column; gap: 1rem; }
+.form-column label { display: flex; flex-direction: column; font-size: 0.9rem; font-weight: bold; color: #4b5563; gap: 0.3rem; }
+.form-column input { padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem; }
+.btn-back { background: #e2e8f0; color: #475569; padding: 0.6rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+.btn-submit { background: #166534; color: white; padding: 0.6rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+.btn-submit:hover { background: #14532d; }
 </style>
