@@ -13,7 +13,7 @@
               id="new_password" 
               v-model="newPassword" 
               required 
-              placeholder="Digite a nova senha (mínimo 10 caracteres)"
+              placeholder="Digite a nova senha"
               minlength="10"
             />
             <button type="button" class="btn-toggle-password" @click="showPassword = !showPassword" title="Mostrar/Ocultar senha">
