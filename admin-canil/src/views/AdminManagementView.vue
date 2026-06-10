@@ -20,54 +20,56 @@
 
     <div class="card list-card">
       <h3>📋 Administradores Cadastrados</h3>
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Nome</th>
-            <th>E-mail</th>
-            <th>Telefone</th>
-            <th>Master?</th>
-            <th>Status</th>
-            <th>Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="admin in admins" :key="admin.id" :class="{'inactive-row': !admin.is_active}">
-            <td>{{ admin.id }}</td>
-            <td>{{ admin.name }}</td>
-            <td>{{ admin.email }}</td>
-            <td>{{ formatPhone(admin.phone) }}</td>
-            <td>{{ admin.is_master ? 'Sim' : 'Não' }}</td>
-            <td>
-              <span v-if="admin.is_locked" class="badge-black">🔒 Bloqueado</span>
-              <span v-else :class="admin.is_active ? 'badge-green' : 'badge-red'">
-                {{ admin.is_active ? 'Ativo' : 'Inativo' }}
-              </span>
-            </td>
-            <td class="actions-cell">
-              <button @click="openEditModal(admin)" class="btn-sm btn-blue">
-                ✏️ Editar
-              </button>
-              <button v-if="admin.email !== 'master@master.master'" @click="toggleStatus(admin)" class="btn-sm btn-warn">
-                {{ admin.is_active ? 'Desativar' : 'Reativar' }}
-              </button>
-              <button v-if="admin.email !== 'master@master.master'" @click="toggleMaster(admin)" class="btn-sm btn-purple">
-                {{ admin.is_master ? 'Remover Master' : 'Tornar Master' }}
-              </button>
-              <button v-if="admin.is_locked" @click="unlockAccount(admin)" class="btn-sm btn-green">
-                🔓 Desbloquear
-              </button>
-              <button v-if="admin.email !== 'master@master.master'" @click="deleteAdmin(admin)" class="btn-sm btn-danger">
-                🗑️ Excluir
-              </button>
-              <button @click="forcePasswordReset(admin)" class="btn-sm btn-danger">
-                Resetar Senha
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nome</th>
+              <th>E-mail</th>
+              <th>Telefone</th>
+              <th>Master?</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="admin in admins" :key="admin.id" :class="{'inactive-row': !admin.is_active}">
+              <td>{{ admin.id }}</td>
+              <td>{{ admin.name }}</td>
+              <td>{{ admin.email }}</td>
+              <td>{{ formatPhone(admin.phone) }}</td>
+              <td>{{ admin.is_master ? 'Sim' : 'Não' }}</td>
+              <td>
+                <span v-if="admin.is_locked" class="badge-black">🔒 Bloqueado</span>
+                <span v-else :class="admin.is_active ? 'badge-green' : 'badge-red'">
+                  {{ admin.is_active ? 'Ativo' : 'Inativo' }}
+                </span>
+              </td>
+              <td class="actions-cell">
+                <button @click="openEditModal(admin)" class="btn-sm btn-blue">
+                  ✏️ Editar
+                </button>
+                <button v-if="admin.email !== 'master@master.master'" @click="toggleStatus(admin)" class="btn-sm btn-warn">
+                  {{ admin.is_active ? 'Desativar' : 'Reativar' }}
+                </button>
+                <button v-if="admin.email !== 'master@master.master'" @click="toggleMaster(admin)" class="btn-sm btn-purple">
+                  {{ admin.is_master ? 'Remover Master' : 'Tornar Master' }}
+                </button>
+                <button v-if="admin.is_locked" @click="unlockAccount(admin)" class="btn-sm btn-green">
+                  🔓 Desbloquear
+                </button>
+                <button v-if="admin.email !== 'master@master.master'" @click="deleteAdmin(admin)" class="btn-sm btn-danger">
+                  🗑️ Excluir
+                </button>
+                <button @click="forcePasswordReset(admin)" class="btn-sm btn-danger">
+                  Resetar Senha
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
     <div v-if="editingAdmin" class="modal-overlay">
       <div class="modal-content card">
@@ -243,14 +245,19 @@ onMounted(() => {
 .inactive-row { background-color: #fef2f2; color: #666; }
 .badge-green { background: #d1fae5; color: #065f46; padding: 0.2rem 0.5rem; border-radius: 99px; font-size: 0.8rem; white-space: nowrap; }
 .badge-red { background: #fee2e2; color: #991b1b; padding: 0.2rem 0.5rem; border-radius: 99px; font-size: 0.8rem; white-space: nowrap; }
-.badge-black { background: #1f2937; color: #ffffff; padding: 0.2rem 0.5rem; border-radius: 99px; font-size: 0.8rem; display: inline-block; white-space: nowrap; }
-.btn-sm { padding: 0.3rem 0.6rem; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; color: white; white-space: nowrap; }
-.actions-cell { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.btn-warn { background: #f59e0b; }
-.btn-purple { background: #8b5cf6; }
-.btn-blue { background: #3b82f6; }
-.btn-danger { background: #ef4444; }
-.btn-green { background: #10b981; }
+.badge-black { background: #1f2937; color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+.btn-sm { padding: 0.4rem 0.6rem; font-size: 0.85rem; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; transition: 0.2s; white-space: nowrap; }
+.btn-blue { background: #3b82f6; } .btn-blue:hover { background: #2563eb; }
+.btn-warn { background: #eab308; color: #1e293b; } .btn-warn:hover { background: #ca8a04; color: white; }
+.btn-purple { background: #8b5cf6; } .btn-purple:hover { background: #7c3aed; }
+.btn-danger { background: #ef4444; } .btn-danger:hover { background: #dc2626; }
+.btn-green { background: #22c55e; } .btn-green:hover { background: #16a34a; }
+
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
 
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
 .modal-content { min-width: 400px; }

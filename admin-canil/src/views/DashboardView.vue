@@ -71,7 +71,7 @@ permissão de Master ('v-if="isMaster"'). -->
       <div class="animal-grid" v-else-if="filteredAnimals.length > 0">
         <div v-for="animal in filteredAnimals" :key="animal.id" class="animal-card" :class="{ 'inactive-card': !animal.is_active }">
           
-          <div class="photo-stack" @click="cyclePhoto(animal)">
+          <div class="photo-stack" @click="openGallery(animal)">
             <template v-if="getStackedPhotos(animal).length > 0">
               <img 
                 v-for="(photo, index) in getStackedPhotos(animal).slice(0, 3)" 
@@ -167,6 +167,16 @@ permissão de Master ('v-if="isMaster"'). -->
         </form>
       </div>
     </div>
+
+    <!-- Galeria Lightbox -->
+    <div v-if="activeGalleryAnimal" class="gallery-overlay" @click.self="closeGallery">
+      <div class="gallery-content">
+        <button class="gallery-close" @click="closeGallery">✖</button>
+        <button class="gallery-nav prev" @click="prevPhoto" v-if="galleryPhotos.length > 1">❮</button>
+        <img :src="getPhotoUrl(galleryPhotos[activeGalleryIndex].file_path)" class="gallery-main-img" />
+        <button class="gallery-nav next" @click="nextPhoto" v-if="galleryPhotos.length > 1">❯</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -203,25 +213,39 @@ const getPhotoUrl = (photo: string) => {
   return `${baseUrl}/${cleanPhoto}`;
 }
 
+const activeGalleryAnimal = ref<any>(null)
+const activeGalleryIndex = ref(0)
+const galleryPhotos = computed(() => activeGalleryAnimal.value ? getActivePhotos(activeGalleryAnimal.value) : [])
+
 const getActivePhotos = (animal: any) => {
   return animal.photos ? animal.photos.filter((p: any) => p.is_active) : []
 }
 
-const cyclePhoto = (animal: any) => {
-  const active = getActivePhotos(animal);
-  if (active.length <= 1) return;
-  
-  if (animal.photoOffset === undefined) {
-    animal.photoOffset = 0;
+const openGallery = (animal: any) => {
+  const active = getActivePhotos(animal)
+  if (active.length === 0) return
+  activeGalleryAnimal.value = animal
+  activeGalleryIndex.value = 0
+}
+
+const closeGallery = () => {
+  activeGalleryAnimal.value = null
+}
+
+const nextPhoto = () => {
+  if (galleryPhotos.value.length > 0) {
+    activeGalleryIndex.value = (activeGalleryIndex.value + 1) % galleryPhotos.value.length
   }
-  animal.photoOffset = (animal.photoOffset + 1) % active.length;
+}
+
+const prevPhoto = () => {
+  if (galleryPhotos.value.length > 0) {
+    activeGalleryIndex.value = (activeGalleryIndex.value - 1 + galleryPhotos.value.length) % galleryPhotos.value.length
+  }
 }
 
 const getStackedPhotos = (animal: any) => {
-  const active = getActivePhotos(animal);
-  if (active.length === 0) return [];
-  const offset = animal.photoOffset || 0;
-  return [...active.slice(offset), ...active.slice(0, offset)];
+  return getActivePhotos(animal);
 }
 
 const formatPhone = (val: string) => {
@@ -624,10 +648,44 @@ button { padding: 0.8rem; border: none; border-radius: 8px; font-weight: bold; c
 }
 .password-hint {
   font-size: 0.8rem;
-  color: #6b7280;
+  color: #64748b;
   margin-top: 4px;
-  margin-bottom: 4px;
 }
+
+/* Modal Lightbox Galeria */
+.gallery-overlay {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center;
+  z-index: 2000;
+}
+.gallery-content {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  max-width: 90vw; max-height: 90vh;
+}
+.gallery-main-img {
+  max-width: 100%; max-height: 90vh; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+.gallery-close {
+  position: absolute; top: -40px; right: 0; background: transparent; border: none;
+  color: white; font-size: 2rem; cursor: pointer; z-index: 2010;
+}
+.gallery-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  background: rgba(0,0,0,0.5); border: none; color: white;
+  font-size: 2rem; padding: 1rem; cursor: pointer; border-radius: 8px;
+  transition: 0.3s; z-index: 2010; display: flex; align-items: center; justify-content: center;
+}
+.gallery-nav:hover { background: rgba(0,0,0,0.8); }
+.gallery-nav.prev { left: -80px; }
+.gallery-nav.next { right: -80px; }
+
+@media (max-width: 768px) {
+  .gallery-nav.prev { left: -10px; }
+  .gallery-nav.next { right: -10px; }
+  .gallery-close { right: 0; top: -50px; }
+  .gallery-content { width: 100vw; }
+}
+
 .btn-back { background: #e2e8f0; color: #475569; padding: 0.6rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
 .btn-submit { background: #166534; color: white; padding: 0.6rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
 .btn-submit:hover { background: #14532d; }
