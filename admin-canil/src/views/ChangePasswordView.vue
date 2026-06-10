@@ -17,7 +17,7 @@
               minlength="10"
             />
             <button type="button" class="btn-toggle-password" @click="showPassword = !showPassword" title="Mostrar/Ocultar senha">
-              {{ showPassword ? '🙈' : '👁️' }}
+              <span style="font-size: 0.8rem; font-weight: bold; color: #475569;">{{ showPassword ? 'OCULTAR' : 'MOSTRAR' }}</span>
             </button>
           </div>
           <p class="password-hint">
@@ -154,19 +154,21 @@ button:disabled { background-color: #9ca3af; cursor: not-allowed; }
 
 .password-input-wrapper {
   position: relative;
-  display: flex;
-  align-items: center;
+  display: block;
 }
 .password-input-wrapper input {
-  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+  padding-right: 70px;
 }
 .btn-toggle-password {
   position: absolute;
   right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 1.2rem;
   padding: 0;
   display: flex;
   align-items: center;
