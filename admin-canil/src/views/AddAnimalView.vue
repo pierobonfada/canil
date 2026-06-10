@@ -82,6 +82,16 @@ o novo pet direto para o estrelato da Home pública! -->
                 <option value="Outra">Outra</option>
               </select>
             </div>
+            <div class="form-group">
+              <label>Pelagem *</label>
+              <select v-model="form.coat_length" required>
+                <option value="" disabled selected>Selecione...</option>
+                <option value="Curta">Curta</option>
+                <option value="Média">Média</option>
+                <option value="Longa">Longa</option>
+                <option value="Sem Pelo">Sem Pelo</option>
+              </select>
+            </div>
           </div>
           
           <div class="form-grid">
@@ -187,7 +197,7 @@ const form = ref({
   name: '', species: '', birth_year: null as any, breed: '', 
   is_vaccinated: '' as any, is_dewormed: '' as any, behavior_dogs: '', 
   behavior_cats: '', behavior_humans: '', independence: '', size: '', 
-  coat_color: 'Indefinida', predominant_color: '', coat_length: 'Curto', description: '', diseases: '' 
+  coat_color: 'Indefinida', predominant_color: '', coat_length: '', description: '', diseases: '' 
 })
 
 const handleFileUpload = (e: any) => {

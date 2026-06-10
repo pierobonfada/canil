@@ -92,7 +92,7 @@ botão verde do WhatsApp pra ele entrar em contato com os tutores! -->
                 <li>{{ animal.is_vaccinated ? '✅ Vacinado' : '❌ Não vacinado' }}</li>
                 <li>{{ animal.is_dewormed ? '✅ Vermifugado' : '❌ Não vermifugado' }}</li>
                 <li v-if="animal.diseases && animal.diseases.length > 0">
-                  <strong>Atenção a:</strong> {{ animal.diseases.join(', ') }}
+                  <strong>Doenças:</strong> {{ animal.diseases.join(', ') }}
                 </li>
                 <li v-else><strong>Condições Especiais:</strong> Nenhuma reportada</li>
               </ul>

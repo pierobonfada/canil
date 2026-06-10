@@ -40,33 +40,35 @@
     </div>
 
     <div class="card list-card">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Data/Hora</th>
-            <th>Tipo</th>
-            <th>Severidade</th>
-            <th>Descrição</th>
-            <th>Admin ID</th>
-            <th>Animal ID</th>
-            <th>IP Remoto</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="log in logs" :key="log.id + log.log_type" :class="getSeverityClass(log.severity)">
-            <td>{{ new Date(log.timestamp).toLocaleString() }}</td>
-            <td>{{ log.log_type }}</td>
-            <td><strong>{{ log.severity }}</strong></td>
-            <td>{{ log.description }}</td>
-            <td>{{ log.admin_id || '-' }}</td>
-            <td>{{ log.animal_id || '-' }}</td>
-            <td>{{ log.remote_ip }}</td>
-          </tr>
-          <tr v-if="logs.length === 0">
-            <td colspan="7" style="text-align: center;">Nenhum log encontrado.</td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Data/Hora</th>
+              <th>Tipo</th>
+              <th>Severidade</th>
+              <th>Descrição</th>
+              <th>Admin ID</th>
+              <th>Animal ID</th>
+              <th>IP Remoto</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="log in logs" :key="log.id + log.log_type" :class="getSeverityClass(log.severity)">
+              <td>{{ new Date(log.timestamp).toLocaleString() }}</td>
+              <td>{{ log.log_type }}</td>
+              <td><strong>{{ log.severity }}</strong></td>
+              <td>{{ log.description }}</td>
+              <td>{{ log.admin_id || '-' }}</td>
+              <td>{{ log.animal_id || '-' }}</td>
+              <td>{{ log.remote_ip }}</td>
+            </tr>
+            <tr v-if="logs.length === 0">
+              <td colspan="7" style="text-align: center;">Nenhum log encontrado.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>
@@ -126,4 +128,10 @@ onMounted(() => {
 .row-info { background-color: #f0fdf4; color: #064e3b; }
 .row-warning { background-color: #fffbeb; color: #92400e; }
 .row-critical { background-color: #fef2f2; color: #991b1b; }
+
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
 </style>
