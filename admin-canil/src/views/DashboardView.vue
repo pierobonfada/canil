@@ -138,12 +138,22 @@ permissão de Master ('v-if="isMaster"'). -->
           </label>
           <label>
             Nova Senha:
-            <input type="password" v-model="editProfileData.password" placeholder="Manter inalterada" />
+            <div class="password-input-wrapper">
+              <input :type="showPassword ? 'text' : 'password'" v-model="editProfileData.password" placeholder="Manter inalterada" />
+              <button type="button" class="btn-toggle-password" @click="showPassword = !showPassword" title="Mostrar/Ocultar senha">
+                {{ showPassword ? '🙈' : '👁️' }}
+              </button>
+            </div>
+            <p class="password-hint" v-if="editProfileData.password.length > 0">
+              A senha deve ter no mínimo 10 caracteres, 1 número e 1 caractere especial (ex: @, !, #).
+            </p>
             <PasswordStrength v-if="editProfileData.password.length > 0" :password="editProfileData.password" />
           </label>
           <label v-if="editProfileData.password.length > 0">
             Confirme a Nova Senha:
-            <input type="password" v-model="editProfileData.confirmPassword" placeholder="Confirme a nova senha" required />
+            <div class="password-input-wrapper">
+              <input :type="showPassword ? 'text' : 'password'" v-model="editProfileData.confirmPassword" placeholder="Confirme a nova senha" required />
+            </div>
           </label>
           <div class="modal-actions">
             <button type="button" @click="showEditProfile = false" class="btn-back">Cancelar</button>
@@ -171,6 +181,7 @@ const isMaster = ref(localStorage.getItem('isMaster') === '1')
 
 const adminInfo = ref<any>(null)
 const showEditProfile = ref(false)
+const showPassword = ref(false)
 const editProfileData = ref({ name: '', email: '', phone: '', password: '', confirmPassword: '' })
 
 const searchQuery = ref('')
@@ -228,6 +239,7 @@ const openEditProfile = () => {
     password: '',
     confirmPassword: ''
   }
+  showPassword.value = false
   showEditProfile.value = true
 }
 
@@ -569,7 +581,39 @@ button { padding: 0.8rem; border: none; border-radius: 8px; font-weight: bold; c
 .form-column { display: flex; flex-direction: column; gap: 1rem; }
 .form-column label { display: flex; flex-direction: column; font-size: 0.9rem; font-weight: bold; color: #4b5563; gap: 0.3rem; }
 .form-column input { padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
-.modal-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem; }
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.password-input-wrapper input {
+  flex: 1;
+}
+.btn-toggle-password {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.password-hint {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
 .btn-back { background: #e2e8f0; color: #475569; padding: 0.6rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
 .btn-submit { background: #166534; color: white; padding: 0.6rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
 .btn-submit:hover { background: #14532d; }

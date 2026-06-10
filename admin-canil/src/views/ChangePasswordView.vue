@@ -7,27 +7,37 @@
       <form @submit.prevent="handleChangePassword">
         <div class="input-group">
           <label for="new_password">Nova Senha</label>
-          <input 
-            type="password" 
-            id="new_password" 
-            v-model="newPassword" 
-            required 
-            placeholder="Digite a nova senha (mínimo 10 caracteres)"
-            minlength="10"
-          />
+          <div class="password-input-wrapper">
+            <input 
+              :type="showPassword ? 'text' : 'password'" 
+              id="new_password" 
+              v-model="newPassword" 
+              required 
+              placeholder="Digite a nova senha (mínimo 10 caracteres)"
+              minlength="10"
+            />
+            <button type="button" class="btn-toggle-password" @click="showPassword = !showPassword" title="Mostrar/Ocultar senha">
+              {{ showPassword ? '🙈' : '👁️' }}
+            </button>
+          </div>
+          <p class="password-hint">
+            A senha deve ter no mínimo 10 caracteres, 1 número e 1 caractere especial (ex: @, !, #).
+          </p>
           <PasswordStrength :password="newPassword" />
         </div>
         
         <div class="input-group">
           <label for="confirm_password">Confirme a Nova Senha</label>
-          <input 
-            type="password" 
-            id="confirm_password" 
-            v-model="confirmPassword" 
-            required 
-            placeholder="Repita a nova senha"
-            minlength="10"
-          />
+          <div class="password-input-wrapper">
+            <input 
+              :type="showPassword ? 'text' : 'password'" 
+              id="confirm_password" 
+              v-model="confirmPassword" 
+              required 
+              placeholder="Repita a nova senha"
+              minlength="10"
+            />
+          </div>
         </div>
 
         <div v-if="errorMessage" class="error-message">
@@ -58,6 +68,7 @@ const confirmPassword = ref('')
 const errorMessage = ref('')
 const successMessage = ref('')
 const isLoading = ref(false)
+const showPassword = ref(false)
 
 const handleChangePassword = async () => {
   if (newPassword.value.length < 10) {
@@ -140,4 +151,31 @@ button:disabled { background-color: #9ca3af; cursor: not-allowed; }
 
 .error-message { color: #dc2626; background-color: #fee2e2; padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; font-size: 0.9rem; }
 .success-message { color: #16a34a; background-color: #dcfce3; padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; font-size: 0.9rem; font-weight: bold; }
+
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.password-input-wrapper input {
+  flex: 1;
+}
+.btn-toggle-password {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.password-hint {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
 </style>
