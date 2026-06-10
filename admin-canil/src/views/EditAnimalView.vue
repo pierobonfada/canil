@@ -167,6 +167,7 @@
                 <button 
                   type="button" 
                   class="btn-set-primary" 
+                  :class="form.primary_photo === photo.file_path ? 'is-primary-icon' : 'not-primary-icon'"
                   title="Definir como Capa" 
                   @click="setPrimaryPhoto(photo.file_path)"
                   v-if="photo.is_active"
@@ -354,7 +355,9 @@ const submitForm = async () => {
   width: 26px; height: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center;
   font-size: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); transition: 0.2s;
 }
-.btn-set-primary:hover { transform: scale(1.15); }
+.btn-set-primary.not-primary-icon { filter: grayscale(100%); opacity: 0.6; }
+.btn-set-primary.is-primary-icon { filter: none; opacity: 1; background: #fffbe8; }
+.btn-set-primary:hover { transform: scale(1.15); filter: none; opacity: 1; }
 
 .btn-remove-photo { 
   position: absolute; top: 6px; right: 6px; background: #ef4444; color: white; border: none; 

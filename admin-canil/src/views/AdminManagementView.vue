@@ -259,6 +259,10 @@ onMounted(() => {
   width: 100%;
 }
 
+@media (max-width: 768px) {
+  .form-row { flex-direction: column; align-items: stretch; }
+}
+
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
 .modal-content { min-width: 400px; }
 .form-column { display: flex; flex-direction: column; gap: 1rem; }
